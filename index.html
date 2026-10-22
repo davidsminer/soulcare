@@ -130,9 +130,12 @@ function acc(id){return (S.lists.accounts.filter(function(a){return a.id===id})[
 function sem(id){return (S.lists.seminars.filter(function(s){return s.id===id})[0])||{name:id||''}}
 function person(id){return (S.lists.people.filter(function(p){return p.id===id})[0])||null}
 function opts(list,sel,valKey,labKey,blank){return (blank?'<option value="">'+esc(blank)+'</option>':'')+list.map(function(x){var v=x[valKey];return '<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(x[labKey])+'</option>'}).join('')}
-function topbar(title,back){return '<div class="top">'+(back?'<button class="back" onclick="goBack()">‹ Back</button>':'')+'<h1>'+esc(title)+'</h1></div>'}
-function go(fn,arg){S.stack.push([fn,arg]);fn(arg)}
-function goBack(){S.stack.pop();var p=S.stack[S.stack.length-1];if(p)p[0](p[1]);else teamHome()}
+function topbar(title,back){return '<div class="top">'+(back!==false||S.stack.length>1?'<button class="back" onclick="goBack()">‹ Back</button>':'')+'<h1 style="flex:1">'+esc(title)+'</h1>'+(S.mode==='team'?'<button class="back" onclick="goHome()" aria-label="Home">🏠</button>':'')+'</div>'}
+function go(fn,arg){S.stack.push([fn,arg]);try{history.pushState({sc:S.stack.length},'')}catch(e){}fn(arg)}
+function doBack(){S.stack.pop();var p=S.stack[S.stack.length-1];if(p)p[0](p[1]);else{S.stack=[[teamHome]];teamHome()}}
+function goBack(){if(history.state&&history.state.sc)history.back();else doBack()}
+function goHome(){S.stack=[[teamHome]];teamHome()}
+window.addEventListener('popstate',function(){if(S.mode==='team')doBack();else if(S.mode==='participant')partHome()});
 function phone254(p){var d=String(p||'').replace(/\D/g,'');if(d.indexOf('0')===0)d='254'+d.slice(1);if(d.length===9)d='254'+d;return d}
 
 /* ---------- start ---------- */
@@ -309,7 +312,7 @@ function partReport(){
   '<label>Did someone else pay for you? Their name (optional)</label><input id="r_payer">'+
   '<div id="r_msg"></div><button class="btn" onclick="partSend(this)">Send</button></div>');
 }
-function topbarP(t){return '<div class="top"><button class="back" onclick="partHome()">‹ Back</button><h1>'+esc(t)+'</h1></div>'}
+function topbarP(t){try{if(!(history.state&&history.state.sc))history.pushState({sc:1},'')}catch(e){}return '<div class="top"><button class="back" onclick="history.state&&history.state.sc?history.back():partHome()">‹ Back</button><h1>'+esc(t)+'</h1></div>'}
 function partSend(btn){
   var x=smsGet('r');if(!x)return;
   busy(btn,true);
@@ -889,8 +892,8 @@ function semNames(a){return a&&a.length?a.map(function(id){return rtParts(sem(id
 function teamRender(){
   var l=S.members;
   var base=(l.filter(function(m){return m.link})[0]||{link:''}).link.split('?')[0];
-  $('tm_out').innerHTML=(base&&S.viewAs?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="memberEdit(-1)">+ Add team member</button>'+
-  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link&&S.viewAs?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="memberEdit('+i+')">Edit</button></div></div>'+
+  $('tm_out').innerHTML=(base&&S.viewAs?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="go(memberEdit,-1)">+ Add team member</button>'+
+  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link&&S.viewAs?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="go(memberEdit,'+i+')">Edit</button></div></div>'+
     (m.group.length?'<div class="list" style="margin-top:6px">'+m.group.map(function(p){return '<div class="it"><div class="l"><div>'+esc(p.name)+'</div><div class="sub">'+esc(rtParts(sem(p.seminar).name).nm)+'</div></div><div class="r">'+pchip(p.status)+'</div></div>'}).join('')+'</div>':'')+
     '</div>'}).join('')+'<div class="hint">To assign a prayer partner: Participants → tap a name → Edit details.</div>';
 }
@@ -906,7 +909,7 @@ function memberEdit(i){
   '<label>Access</label><div class="seg" id="m_act" data-v="'+(m.active?'1':'0')+'"><button data-v="1" class="'+(m.active?'on':'')+'" onclick="segPick(this)">Active</button><button data-v="0" class="'+(m.active?'':'on')+'" onclick="segPick(this)">Switched off</button></div>'+
   '<div id="m_msg"></div><button class="btn" onclick="memberSave('+i+',this)">Save</button>'+(i>=0&&m.name!==S.me?'<button class="btn red" onclick="memberDel('+i+',this)">Delete '+esc(m.name)+'</button>':'')+
   (m.link?'<div class="card" style="background:var(--brand2)"><h3>Personal link</h3><div class="sub" style="word-break:break-all">'+esc(m.link)+'</div>'+(wa?'<a class="btn" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(wa)+'">Send link on WhatsApp</a>':'<div class="hint">Add a phone number to send it on WhatsApp.</div>')+'</div>':'')+
-  '<button class="btn light" onclick="teamView()">Back</button></div>');
+  '<button class="btn light" onclick="goBack()">Back</button></div>');
 }
 function memberDel(i,btn){var n=S.members[i].name;if(!confirm('Delete '+n+' from the team? Their personal link stops working and their prayer group becomes unassigned.'))return;busy(btn,true);
   call('teamMemberDelete',AUTH,n).then(function(l){S.members=l;return refreshHome()}).then(function(){S.people=null;loadPeople();S.stack=[[teamHome],[teamView]];teamView()}).catch(function(e){busy(btn,false);showMsg('m_msg',e,'err')})}
