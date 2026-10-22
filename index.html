@@ -115,7 +115,7 @@ var S = { stack: [] };
 /* ---------- helpers ---------- */
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function money(n,cur){n=Number(n)||0;var s=Math.round(n*100)/100;return (cur&&cur!=='KES'?cur+' ':'')+s.toLocaleString('en-US',{maximumFractionDigits:2})+(cur==='KES'||!cur?' KES':'')}
+function money(n,cur){n=Number(n)||0;var s=Math.round(n*100)/100;return (cur&&cur!=='KES'?cur+' ':'')+s.toLocaleString('en-US',{maximumFractionDigits:2})+((cur==='KES'||!cur)&&!window.NOKES?' KES':'')}
 function today(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
 function call(fn){var args=[].slice.call(arguments,1);return fetch(API,{method:'POST',body:JSON.stringify({fn:fn,args:args})}).then(function(r){return r.json()},function(){throw 'No internet connection. Please try again.'}).then(function(d){if(!d.ok)throw String(d.e).replace(/^(Exception|Error):\s*/,'');return d.r})}
@@ -308,7 +308,8 @@ function teamHome(){
   render(x);
 }
 function frow(op,label,v,cls){return '<div class="frow'+(cls?' '+cls:'')+'"><span><span class="op">'+op+'</span>'+label+'</span><b class="'+(v<0?'neg':'')+'">'+money(v)+'</b></div>'}
-function fundsCard(d,link){
+function fundsCard(d,link){var nk=window.NOKES;window.NOKES=true;try{return fundsCard_(d,link)}finally{window.NOKES=nk}}
+function fundsCard_(d,link){
   return '<div class="card"><h3>Funds overview (KES)</h3>'+
   frow('','Received so far',d.income)+frow('','Spent so far',d.spent)+
   frow('','Money we hold now',d.hold)+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
@@ -319,12 +320,13 @@ function fundsCard(d,link){
   '<div class="hint">“Planned costs” include the budget below and the discounts already promised ('+money(d.discounts)+'). Rates: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
   (link?'<button class="btn light" onclick="go(budgetView)">📊 Budget & planning</button>':'')+'</div>'}
 function budgetView(){
-  render(topbar('Budget & planning',true)+'<div id="bg_out">'+(S.home.budget?'':'<div class="loading">Loading…</div>')+'</div>');
+  render(topbar('Budget & planning (KES)',true)+'<div id="bg_out">'+(S.home.budget?'':'<div class="loading">Loading…</div>')+'</div>');
   if(S.home.budget)budgetRender();
   call('budget',AUTH).then(function(d){S.home.budget=d;if($('bg_out'))budgetRender()}).catch(function(e){if($('bg_out'))$('bg_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
 }
 function semLabel(k){return k==='GEN'?'Whole project (both retreats)':rtParts(sem(k).name).nm}
-function budgetRender(){
+function budgetRender(){window.NOKES=true;try{budgetRender_()}finally{window.NOKES=false}}
+function budgetRender_(){
   var d=S.home.budget,x=fundsCard(d,false);
   x+='<h2 style="margin-top:24px">The retreats</h2>'+d.sems.map(function(s,i){
     return '<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;line-height:1.1;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
@@ -357,7 +359,8 @@ function planEdit(i){var s=S.home.budget.sems[i];
   '<div class="hint">Team members counted: '+s.team+'. To change who is part of this retreat, go to Team → Edit → “Part of which retreats?”.</div>'+
   '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>')}
 function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,costP:$('pl_cp').value,costT:$('pl_ct').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
-function bgCalc(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
+function bgCalc(){window.NOKES=true;try{bgCalc_()}finally{window.NOKES=false}}
+function bgCalc_(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
   $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> extra discount.':'<b>No room for more discounts yet</b> – the plan needs '+money(-tot)+' more than we have and expect. Raise more funds or reduce planned costs.'}
 function budgetEdit(o){var d=S.home.budget,l={category:o.ci!=null?d.cats[o.ci].name:'',description:'',amount:'',cur:'KES',seminar:'GEN',notes:''};
   if(o.id)d.cats.forEach(function(c){c.rows.forEach(function(r){r.lines.forEach(function(x){if(x.id===o.id)l=x})})});
