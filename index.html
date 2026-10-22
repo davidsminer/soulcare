@@ -287,7 +287,7 @@ function teamHome(){
   var mySems=h.mySems||[];
   x+=h.seminars.map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
     return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
-    '<div class="stat" style="margin:6px 0 0"><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
+    '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+(s.planned||'–')+(fin?' ✏️':'')+'</b><span>Planned</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
     (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+
     (inIt?'<div class="mine"><b>🙏 My prayer group</b>'+(mine.length?'<div class="list">'+mine.map(function(m){return '<div class="it tap" onclick="openPerson(\''+m.id+'\')"><div class="l">'+esc(m.name)+'</div><div class="r">'+pchip(m.status)+'</div></div>'}).join('')+'</div>':'<div class="sub">No one assigned to you yet.</div>')+'</div>':'')+
     '<button class="btn light small" style="margin-top:10px" onclick="go(peopleView,{seminar:\''+s.id+'\'})">All participants of this retreat ›</button></div>'}).join('');
@@ -348,14 +348,15 @@ function budgetRender(){
       '<div class="hint" style="margin-top:8px"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
   $('bg_out').innerHTML=x;bgCalc();
 }
+function planFromHome(id){var b=S.home.budget;if(!b)return;var i=b.sems.map(function(x){return x.id}).indexOf(id);if(i>=0)go(planEdit,i)}
 function planEdit(i){var s=S.home.budget.sems[i];
   render(topbar('Planned numbers',true)+'<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
   '<label>How many participants do we expect?</label><input id="pl_n" type="number" inputmode="numeric" value="'+s.planned+'">'+
-  '<label>Venue cost per participant (KES, full board)</label><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
-  '<label>Venue cost per team member (KES)</label><input id="pl_ct" type="number" inputmode="numeric" value="'+s.costT+'">'+
+  '<label>What the venue charges us per participant (KES, full board)</label><div class="hint">Not the same as the price participants pay ('+money(s.price)+').</div><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
+  '<label>What the venue charges us per team member (KES)</label><input id="pl_ct" type="number" inputmode="numeric" value="'+s.costT+'">'+
   '<div class="hint">Team members counted: '+s.team+'. To change who is part of this retreat, go to Team → Edit → “Part of which retreats?”.</div>'+
   '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>')}
-function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,costP:$('pl_cp').value,costT:$('pl_ct').value}).then(function(d){S.home.budget=d;goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
+function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,costP:$('pl_cp').value,costT:$('pl_ct').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
 function bgCalc(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
   $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> extra discount.':'<b>No room for more discounts yet</b> – the plan needs '+money(-tot)+' more than we have and expect. Raise more funds or reduce planned costs.'}
 function budgetEdit(o){var d=S.home.budget,l={category:o.ci!=null?d.cats[o.ci].name:'',description:'',amount:'',cur:'KES',seminar:'GEN',notes:''};
