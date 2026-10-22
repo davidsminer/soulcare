@@ -274,12 +274,14 @@ function partHome(note){
   h+='<div class="paysec" id="paysec"><h2>Payment</h2>';
   if(its.length>1)h+='<div class="card">'+its.map(function(it){return '<div class="frow"><span>'+esc(rtParts(it.seminar.name).nm)+'</span><b>'+money(it.person.Due)+'</b></div>'}).join('')+'<div class="frow tot"><span>Total</span><b>'+money(tot)+'</b></div></div>';
   h+='<div class="stat"><div><b>'+money(tot)+'</b><span>Total</span></div><div><b class="pos">'+money(paid)+'</b><span>Received</span></div><div><b class="'+(open>0?'neg':'pos')+'">'+money(open)+'</b><span>Still open</span></div></div>';
-  if(rep>paid&&rep>0)h+='<div class="hint">Payments being checked: '+money(rep)+'. They show as received once the team has confirmed them.</div>';
+  if(rep>0)h+='<div class="hint">Payments being checked: '+money(rep)+'. They show as received once the team has confirmed them.</div>';
+  var bs={};burs=burs.filter(function(b){var k=b.st+'|'+b.amt;if(bs[k]){bs[k].nm+=' & '+b.nm;return false}bs[k]=b;return true});
   burs.forEach(function(b){h+=b.st==='Approved'?'<div class="msg ok">💛 A bursary of <b>'+money(b.amt)+'</b> has been approved for you'+(its.length>1?' ('+esc(b.nm)+')':'')+'. It is already taken off your total above.</div>':
     b.st==='Requested'?'<div class="msg info">💛 Your bursary request has been received'+(its.length>1?' ('+esc(b.nm)+')':'')+'. The team will let you know here.</div>':
     b.st==='Not approved'?'<div class="msg info">💛 We were not able to give a bursary this time'+(its.length>1?' ('+esc(b.nm)+')':'')+'. Please contact Lisa or Kristen if you would like to talk about it.</div>':''});
-  if(need>0)h+='<div class="msg info"><b>Please pay now: '+money(need)+'</b> registration fee by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>. Your place is secured once it is received.'+(open-need>0?' The remaining '+money(open-need)+' can be paid in parts before the retreat.':'')+'</div>';
-  else if(open>0)h+='<div class="msg info">The remaining <b>'+money(open)+'</b> can be paid in parts before the retreat, by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>.</div>';
+  var rest=Math.max(0,open-rep);
+  if(need>0)h+='<div class="msg info"><b>Please pay now: '+money(need)+'</b> registration fee by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>. Your place is secured once it is received.'+(rest-need>0?' The remaining '+money(rest-need)+' can be paid in parts before the retreat.':'')+'</div>';
+  else if(rest>0)h+='<div class="msg info">The remaining <b>'+money(rest)+'</b> can be paid in parts before the retreat, by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>.</div>';
   h+='<button class="btn'+(need>0?'':' light')+'" onclick="partReport()">I made a payment – paste the M-Pesa SMS</button>';
   if(!burs.length&&open>0)h+='<button class="btn light" onclick="partBursary()">💛 Apply for a bursary</button>';
   h+='<div class="card"><h3>My payments</h3><div class="list">'+(pays||'<div class="sub">No payments yet.</div>')+'</div></div></div>';
