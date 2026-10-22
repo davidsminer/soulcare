@@ -182,10 +182,10 @@ function paras(t){return String(t||'').split(/\n+/).filter(function(x){return x.
 function signupView(){
   var h='<div class="hero" style="background-image:url('+HERO+')"><div class="ttl">Soul Care Retreats</div></div>';
   if(!S.seminars.length){render(h+'<div class="card">Registration is not open at the moment. Please check back later.</div>');return}
-  if(!S.sel)S.sel=S.seminars[0].id;
+  if(!S.selA)S.selA=[S.seminars[0].id];
   function ta(id,l){return '<label>'+l+'</label><textarea id="'+id+'"></textarea>'}
-  h+='<div class="lead">In 2027 we are offering two retreats. Choose the one you would like to attend (tap <b>Read more</b> to learn about each), then fill in the registration below. It takes about 10 minutes.</div>';
-  h+=S.seminars.map(function(s){var p=rtParts(s.name),on=s.id===S.sel;
+  h+='<div class="lead">In 2027 we are offering two retreats. Choose one – or both, if you would like to join both retreats (tap <b>Read more</b> to learn about each). Then fill in the registration below. It takes about 10 minutes.</div>';
+  h+=S.seminars.map(function(s){var p=rtParts(s.name),on=S.selA.indexOf(s.id)>=0;
     return '<div class="card rt'+(on?' on':'')+'" id="rt_'+esc(s.id)+'" onclick="pickRetreat(\''+esc(s.id)+'\')">'+
     '<span class="pick">'+(on?'✓ Chosen':'Choose')+'</span>'+(p.lbl?'<div class="lbl">'+esc(p.lbl)+'</div>':'')+'<div class="nm">'+esc(p.nm)+'</div>'+
     '<div class="meta">'+esc(fmtRange(s.start,s.end))+(s.venue?' · '+esc(s.venue):'')+'</div>'+
@@ -203,25 +203,34 @@ function signupView(){
   '<label>Photos: we would like to take some photos to share what Soul Care does, in newsletters, on our website and in church presentations. Do you agree to appear in these photos?</label>'+
   '<div class="opts" id="s_photo"><button data-v="Agree" onclick="segPick(this)">Yes, I agree</button><button data-v="Disagree" onclick="segPick(this)">No, please do not show me in photos</button></div></div>'+
   '<div class="card"><h3>Personal</h3>'+ta('s_journey','How would you describe where you are at the moment in your journey with God?')+ta('s_hope','What do you hope for from this retreat?')+ta('s_prayer','Is there anything specific we can pray for in the coming weeks?')+'</div>'+
-  '<div class="card"><h3>Registration fee</h3><p>'+esc(S.info||'')+'</p>'+
+  '<div class="card"><h3>Your cost</h3><div id="s_cost"></div>'+
+  '<label class="chk" style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-weight:600"><input type="checkbox" id="s_burs" style="width:22px;height:22px;flex:none;margin-top:2px" onchange="$(\'s_bursw\').className=this.checked?\'\':\'hide\'"> 💛 I would like to apply for a bursary (help with the cost)</label>'+
+  '<div id="s_bursw" class="hide"><div class="hint">Bursaries come from donations. The team will look at your request and let you know on your personal page. The registration fee is always paid by you.</div><label>Anything you would like us to know? (optional)</label><textarea id="s_bursn" style="min-height:70px"></textarea></div>'+
   '<label>Already paid? Copy the whole M-Pesa confirmation SMS and paste it here</label><textarea id="s_sms" style="min-height:110px" placeholder="TJ1FX66L6H Confirmed. Ksh2,000.00 sent to SOUL CARE RETREAT on 21/10/26 at 3:15 PM…" oninput="smsFill(\'s\')"></textarea><div id="s_smsinfo" class="hint"></div>'+
   '<div class="hint">Please paste the complete message, not just the code. If someone else paid for you, paste the confirmation message they received.</div>'+
   '<div class="msg info" style="margin-top:12px">Not paid yet? You can still register now. Your registration is <b>pending</b> and your place is only secured once the registration fee has been received. You can paste the M-Pesa SMS later on your personal page.</div></div>'+
   '<div id="s_msg"></div><button class="btn" onclick="doSignup(this)">Register</button>'+
   (S.contact?'<div class="hint" style="text-align:center;margin-top:14px">'+esc(S.contact)+'</div>':'');
-  render(h);
+  render(h);costUpd();
 }
-function pickRetreat(id){S.sel=id;S.seminars.forEach(function(s){var el=$('rt_'+s.id);if(!el)return;var on=s.id===id;el.classList.toggle('on',on);el.querySelector('.pick').textContent=on?'✓ Chosen':'Choose'})}
+function pickRetreat(id){var i=S.selA.indexOf(id);if(i>=0){if(S.selA.length>1)S.selA.splice(i,1)}else S.selA.push(id);
+  S.seminars.forEach(function(s){var el=$('rt_'+s.id);if(!el)return;var on=S.selA.indexOf(s.id)>=0;el.classList.toggle('on',on);el.querySelector('.pick').textContent=on?'✓ Chosen':'Choose'});costUpd()}
+function payTo(){return payName()+(S.pay&&S.pay.phone?', '+S.pay.phone:'')}
+function costUpd(){var el=$('s_cost');if(!el)return;var sel=S.seminars.filter(function(s){return S.selA.indexOf(s.id)>=0});
+  var tot=0,dep=0;var rows=sel.map(function(s){tot+=s.price||0;dep+=s.deposit||0;return '<div class="frow"><span>'+esc(rtParts(s.name).nm)+'</span><b>'+money(s.price)+'</b></div>'}).join('');
+  el.innerHTML=rows+(sel.length>1?'<div class="frow tot"><span>Total</span><b>'+money(tot)+'</b></div>':'')+
+  '<div class="msg info" style="margin-top:12px"><b>Please pay now: '+money(dep)+'</b> registration fee'+(sel.length>1?' ('+money(sel[0].deposit)+' per retreat)':'')+' by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>. Your place is secured once this is received.<br>The remaining '+money(tot-dep)+' can be paid in parts before the retreat.</div>'}
 function toggleMore(id){var el=$('rt_'+id);el.classList.toggle('open');el.querySelector('.readmore').textContent=el.classList.contains('open')?'Show less ‹':'Read more ›'}
 function fmtRange(a,b){var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];function f(x){var p=String(x).split('-');return p.length===3?(+p[2])+' '+m[+p[1]-1]+' '+p[0]:x}return a?(b?f(a)+' – '+f(b):f(a)):''}
 function segPick(b){[].forEach.call(b.parentNode.children,function(x){x.classList.remove('on')});b.classList.add('on');b.parentNode.dataset.v=b.dataset.v}
 function doSignup(btn){
-  var d={seminar:S.sel,name:$('s_name').value,phone:$('s_phone').value,gender:$('s_g').dataset.v||'',age:$('s_age').value,nationality:$('s_nat').value,
+  var d={seminar:S.selA[0],seminars:S.selA,bursary:$('s_burs').checked,bursaryNote:$('s_bursn').value,name:$('s_name').value,phone:$('s_phone').value,gender:$('s_g').dataset.v||'',age:$('s_age').value,nationality:$('s_nat').value,
     diet:$('s_diet').value,photo:$('s_photo').dataset.v||'',journey:$('s_journey').value,hope:$('s_hope').value,prayer:$('s_prayer').value,
     sms:$('s_sms').value.trim()};
   if(d.sms){var x=smsGet('s');if(!x)return;d.code=x.code;d.amount=x.amount;d.date=x.date}
   busy(btn,true);
   call('signup',d).then(function(r){
+    if(r.existing){busy(btn,false);showMsg('s_msg','You are already registered with this phone number. Please open your personal page with the link you saved. Lost it? Contact Lisa or Kristen and they will send it to you again.','err');return}
     if(!window.TEST)store('sc_p',r.token);AUTH={p:r.token};
     return call('init',AUTH).then(function(x){S.pv=x.view;S.info=x.info;S.payTo=x.payTo;S.contact=x.contact;S.arrival=x.arrival;S.thanks=x.thanks;S.pay=x.pay||S.pay;
       S.justReg={existing:r.existing,pay:r.payMsg};partHome()})
@@ -231,35 +240,60 @@ function doSignup(btn){
 /* =========================================================
    PARTICIPANT
    ========================================================= */
+function partItems(){var v=S.pv;return (v.items&&v.items.length)?v.items:[{person:v.person,seminar:v.seminar}]}
+function myLink(){return location.origin+location.pathname+'?p='+AUTH.p}
+function linkCard(){var l=myLink();
+  return '<div class="card"><h3>🔗 Your personal page</h3><div class="sub">Save this link so you can come back any time to see your registration and payments.</div>'+
+  '<div style="word-break:break-all;margin:8px 0;padding:10px;background:var(--brand2);border-radius:10px;font-size:14px">'+esc(l)+'</div>'+
+  '<div class="grid" style="margin:6px 0 0"><button class="big" onclick="copyLink(this)"><span class="i">📋</span>Copy link</button><a class="big" style="text-decoration:none;color:inherit;display:block" target="_blank" href="https://wa.me/?text='+encodeURIComponent('My Soul Care retreat page: '+l)+'"><span class="i">💬</span>Send to myself on WhatsApp</a></div>'+
+  '<div class="hint">Tip: in your browser menu choose “Add to Home screen” – then it opens like an app.</div></div>'}
+function copyLink(b){var l=myLink();function ok(){b.innerHTML='<span class="i">✓</span>Copied'}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(l).then(ok,function(){prompt('Copy this link:',l)});else prompt('Copy this link:',l)}
 function partHome(note){
-  var v=S.pv,p=v.person,sm=v.seminar,rp=rtParts(sm.name),pt=v.partner;
-  var pays=v.payments.map(function(x){return '<div class="it"><div class="l"><div class="t">'+money(x.amount)+'</div><div class="sub">'+esc(x.date)+' · '+esc(x.code)+'</div></div><div class="r">'+chip(x.status==='Check'?'Being checked':x.status)+'</div></div>'}).join('');
+  var v=S.pv,its=partItems(),p=its[0].person;
+  var pays=v.payments.map(function(x){var nm=its.length>1?(its.filter(function(i){return i.person.ID===x.pid})[0]||{seminar:{}}).seminar:null;
+    var st=x.status==='Confirmed'?'<span class="chip c-Paid">✓ Received</span>':x.status==='Deleted'?'':'<span class="chip c-Reported">Being checked</span>';
+    return '<div class="it"><div class="l"><div class="t">'+money(x.amount)+'</div><div class="sub">'+esc(x.date)+' · '+esc(x.code)+(nm&&nm.name?' · '+esc(rtParts(nm.name).nm):'')+'</div></div><div class="r">'+st+'</div></div>'}).join('');
   var h='<div class="hero sm" style="background-image:url('+HERO+')"><div class="ttl">Soul Care</div></div>';
-  if(S.justReg){h+='<div class="card thanks"><div class="big2">Thank you!</div><p>'+esc(S.justReg.existing?'You were already registered, so here is your personal page.':(S.thanks||'Thank you for registering.'))+'</p>'+
-    '<div class="sub">This is your personal page. This phone will remember it, so you can come back any time.</div></div>';S.justReg=null}
-  h+='<h1>Hello '+esc(String(p.Name).split(' ')[0])+'</h1>'+(note?'<div class="msg ok">'+esc(note)+'</div>':'')+topStatus(p,sm)+
-  '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(rp.lbl||'Retreat')+'</div><div style="font-family:Sacramento,cursive;font-size:40px;line-height:1.15;color:var(--brand)">'+esc(rp.nm)+'</div>'+
+  var just=S.justReg;
+  if(just){h+='<div class="card thanks"><div class="big2">Thank you!</div><p>'+esc(S.thanks||'Thank you for registering.')+'</p>'+(just.pay?'<div class="msg info">'+esc(just.pay)+'</div>':'')+'</div>';S.justReg=null}
+  if(just)h+=linkCard();
+  h+='<h1>Hello '+esc(String(p.Name).split(' ')[0])+'</h1>'+(note?'<div class="msg ok">'+esc(note)+'</div>':'')+topStatusAll(its);
+  h+=its.map(function(it){var sm=it.seminar,rp=rtParts(sm.name);
+    return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(rp.lbl||'Retreat')+'</div><div style="font-family:Sacramento,cursive;font-size:40px;line-height:1.15;color:var(--brand)">'+esc(rp.nm)+'</div>'+
     '<div class="sub">'+(sm.start?esc(fmtRange(sm.start,sm.end)):'')+(sm.venue?' · '+esc(sm.venue):'')+'</div>'+
-    (sm.desc?'<div id="rt_me" class="rtd">'+paras(sm.desc)+'</div><div class="hint"><a href="#" onclick="var d=$(\'rt_me\');d.classList.toggle(\'open\');this.textContent=d.classList.contains(\'open\')?\'Show less\':\'Read more\';return false">Read more</a></div>':'')+'</div>'+
-  (pt?'<div class="card"><h3>🙏 Your prayer partner</h3><div style="font-size:18px;font-weight:600">'+esc(pt.name)+'</div>'+
-    (pt.phone?'<div style="margin-top:6px"><a href="tel:'+esc(String(pt.phone).replace(/\s/g,''))+'">📞 '+esc(pt.phone)+'</a> · <a target="_blank" href="https://wa.me/'+phone254(pt.phone)+'">WhatsApp</a></div>':'')+
-    '<div class="sub" style="margin-top:6px">'+esc(String(pt.name).split(' ')[0])+' will be praying for you as you prepare for the retreat. Feel free to get in touch.</div></div>':'')+
-  (S.arrival?'<div class="card"><h3>Arrival</h3><p>'+linkify(S.arrival)+'</p></div>':'')+
-  '<div class="card"><details class="reg"><summary>📝 My registration information ›</summary>'+myInfo(p,sm)+'</details></div>'+
-  (S.contact?'<div class="card"><h3>Questions?</h3><p>'+linkify(S.contact)+'</p></div>':'')+
-  '<div class="paysec" id="paysec"><h2>Payment</h2>'+
-  '<div class="stat"><div><b>'+money(p.Due)+'</b><span>Total</span></div><div><b class="pos">'+money(p['Paid (confirmed)'])+'</b><span>Paid</span></div><div><b class="'+(p.Balance>0?'neg':'pos')+'">'+money(Math.max(0,p.Balance))+'</b><span>Still open</span></div></div>'+
-  '<button class="btn'+(p.Status==='Pending'?'':' light')+'" onclick="partReport()">I made a payment</button>'+
-  '<div class="card"><h3>How to pay</h3><p>'+linkify(S.info||'')+'</p></div>'+
-  '<div class="card"><h3>My payments</h3><div class="list">'+(pays||'<div class="sub">No payments yet.</div>')+'</div></div></div>';
+    (sm.desc?'<div id="rt_me_'+esc(sm.id)+'" class="rtd">'+paras(sm.desc)+'</div><div class="hint"><a href="#" onclick="var d=$(\'rt_me_'+esc(sm.id)+'\');d.classList.toggle(\'open\');this.textContent=d.classList.contains(\'open\')?\'Show less\':\'Read more\';return false">Read more</a></div>':'')+'</div>'}).join('');
+  h+=(S.arrival?'<div class="card"><h3>Arrival</h3><p>'+linkify(S.arrival)+'</p></div>':'')+
+  '<div class="card"><details class="reg"><summary>📝 My registration information ›</summary>'+myInfo(p,its[0].seminar)+'</details></div>'+
+  (S.contact?'<div class="card"><h3>Questions?</h3><p>'+linkify(S.contact)+'</p></div>':'');
+  /* payment */
+  var tot=0,paid=0,rep=0,open=0,need=0,burs=[];
+  its.forEach(function(it){var q=it.person,due=Number(q.Due)||0,pc=Number(q['Paid (confirmed)'])||0,pr=Number(q['Paid (reported)'])||0;
+    tot+=due;paid+=pc;rep+=pr;open+=Math.max(0,due-pc);need+=Math.max(0,Math.min(Number(it.seminar.deposit)||0,due)-pc-pr);
+    if(q.Bursary)burs.push({st:q.Bursary,amt:Number(q.Discount)||0,nm:rtParts(it.seminar.name).nm})});
+  h+='<div class="paysec" id="paysec"><h2>Payment</h2>';
+  if(its.length>1)h+='<div class="card">'+its.map(function(it){return '<div class="frow"><span>'+esc(rtParts(it.seminar.name).nm)+'</span><b>'+money(it.person.Due)+'</b></div>'}).join('')+'<div class="frow tot"><span>Total</span><b>'+money(tot)+'</b></div></div>';
+  h+='<div class="stat"><div><b>'+money(tot)+'</b><span>Total</span></div><div><b class="pos">'+money(paid)+'</b><span>Received</span></div><div><b class="'+(open>0?'neg':'pos')+'">'+money(open)+'</b><span>Still open</span></div></div>';
+  if(rep>paid&&rep>0)h+='<div class="hint">Payments being checked: '+money(rep)+'. They show as received once the team has confirmed them.</div>';
+  burs.forEach(function(b){h+=b.st==='Approved'?'<div class="msg ok">💛 A bursary of <b>'+money(b.amt)+'</b> has been approved for you'+(its.length>1?' ('+esc(b.nm)+')':'')+'. It is already taken off your total above.</div>':
+    b.st==='Requested'?'<div class="msg info">💛 Your bursary request has been received'+(its.length>1?' ('+esc(b.nm)+')':'')+'. The team will let you know here.</div>':
+    b.st==='Not approved'?'<div class="msg info">💛 We were not able to give a bursary this time'+(its.length>1?' ('+esc(b.nm)+')':'')+'. Please contact Lisa or Kristen if you would like to talk about it.</div>':''});
+  if(need>0)h+='<div class="msg info"><b>Please pay now: '+money(need)+'</b> registration fee by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>. Your place is secured once it is received.'+(open-need>0?' The remaining '+money(open-need)+' can be paid in parts before the retreat.':'')+'</div>';
+  else if(open>0)h+='<div class="msg info">The remaining <b>'+money(open)+'</b> can be paid in parts before the retreat, by M-Pesa (“Send money”) to <b>'+esc(payTo())+'</b>.</div>';
+  h+='<button class="btn'+(need>0?'':' light')+'" onclick="partReport()">I made a payment – paste the M-Pesa SMS</button>';
+  if(!burs.length&&open>0)h+='<button class="btn light" onclick="partBursary()">💛 Apply for a bursary</button>';
+  h+='<div class="card"><h3>My payments</h3><div class="list">'+(pays||'<div class="sub">No payments yet.</div>')+'</div></div></div>';
+  if(!just)h+=linkCard();
   render(h);
 }
-function topStatus(p,sm){var st=p.Status,rep=Number(p['Paid (reported)'])||0;
-  if(st==='Paid'||st==='Registered'||st==='Free')return '<div class="msg ok">✓ <b>You are registered.</b> Your place is secured – we look forward to seeing you!</div>';
-  if(rep>0)return '<div class="msg info">⏳ <b>Thank you for your payment.</b> Your registration will be confirmed as soon as the team has checked it.</div>';
-  return '<div class="msg info"><b>You are signed up!</b> Your place is secured once the registration fee of '+money(sm.deposit||2000)+' is paid – <a href="#" onclick="$(\'paysec\').scrollIntoView({behavior:\'smooth\'});return false">see Payment below</a>.</div>'}
-function myInfo(p,sm){var q=[['Name','Name'],['Phone','Phone'],['Gender','Gender'],['Age','Age'],['Nationality','Nationality'],['Dietary needs','Dietary needs'],['Photo consent','Photos'],['Journey with God','Journey with God'],['Hope for retreat','Hope for the retreat'],['Prayer requests','Prayer requests']].filter(function(x){return p[x[0]]!==''&&p[x[0]]!=null});
-  return '<div style="margin-top:8px"><div class="sub">Retreat</div><div>'+esc(rtParts(sm.name).nm)+'</div></div>'+q.map(function(x){return '<div style="margin:10px 0"><div class="sub">'+esc(x[1])+'</div><div>'+esc(p[x[0]])+'</div></div>'}).join('')+'<div class="hint">Something wrong or changed? Let us know (see Questions above).</div>'}
+function topStatusAll(its){
+  if(its.length===1)return topStatus(its[0].person,its[0].seminar);
+  return '<div class="card">'+its.map(function(it){var q=it.person,reg=/^(Registered|Paid|Free)$/.test(q.Status);
+    return '<div class="frow"><span>'+esc(rtParts(it.seminar.name).nm)+'</span><span>'+(reg?'<span class="chip c-Paid">✓ Registered</span>':(Number(q['Paid (reported)'])>0?'<span class="chip c-Reported">Payment being checked</span>':'<span class="chip c-Pending">Signed up – fee not yet paid</span>'))+'</span></div>'}).join('')+'</div>'}
+function partBursary(){
+  render(topbarP('Apply for a bursary')+'<div class="card"><p>Bursaries help participants who cannot pay the full cost. They come from donations, so the team looks at each request personally and will let you know on your page.</p><p>The registration fee is always paid by you.</p>'+
+  '<label>Anything you would like us to know? (optional)</label><textarea id="b_note" style="min-height:100px"></textarea><div id="b_msg"></div><button class="btn" onclick="partBursarySend(this)">Send my request</button></div>')}
+function partBursarySend(btn){busy(btn,true);call('participantBursary',AUTH,{note:$('b_note').value}).then(function(r){S.pv=r.view;partHome('Thank you – your bursary request has been sent.')}).catch(function(e){busy(btn,false);showMsg('b_msg',e,'err')})}
 function partReport(){
   render(topbarP('Report a payment')+'<div class="card"><p>Open the M-Pesa confirmation SMS for your payment, copy the <b>whole message</b> and paste it below.</p>'+
   '<textarea id="r_sms" style="min-height:130px" placeholder="TJ1FX66L6H Confirmed. Ksh2,000.00 sent to SOUL CARE RETREAT on 21/10/26 at 3:15 PM…" oninput="smsFill(\'r\')"></textarea><div id="r_smsinfo" class="hint"></div>'+
@@ -289,7 +323,7 @@ function teamHome(){
   x+='<div class="card"><h3>✅ My tasks</h3>'+(mt.length?'<div class="list">'+mt.map(function(t){return '<div class="it tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="l"><div class="t">'+esc(t.title)+'</div>'+(t.due?'<div class="sub'+(t.due<today()?' neg':'')+'">due '+esc(t.due)+'</div>':'')+'</div><div class="r">›</div></div>'}).join('')+'</div>':'<div class="sub">Nothing on your list.</div>')+
     '<button class="btn light small" style="margin-top:10px" onclick="go(tasksView,{})">All tasks ›</button></div>';
   x+='<div class="grid"><button class="big'+(S.admin?'':' main')+'" onclick="go(peopleView,{})"><span class="i">👥</span>Participants</button>'+(S.admin?'<button class="big" onclick="go(boardView,{})"><span class="i">🙏</span>Prayer groups</button><button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
-    (fin?'<button class="big" onclick="go(checkView)"><span class="i">💳</span>Payments to check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>';
+    (fin&&h.bursaries?'<button class="big" onclick="go(peopleView,{bursary:1})"><span class="i">💛</span>Bursary requests<span class="badge">'+h.bursaries+'</span></button>':'')+(fin?'<button class="big" onclick="go(checkView)"><span class="i">💳</span>Payments to check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>';
   x+=h.seminars.filter(function(s){return S.admin||!mySems.length||mySems.indexOf(s.id)>=0}).map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
     return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
     '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+((s.booked||s.planned)||'–')+(fin?' ✏️':'')+'</b><span>'+(s.booked?'Places booked':'Planned')+'</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
@@ -706,11 +740,11 @@ function doBal(btn){busy(btn,true);call('teamBalanceCheck',AUTH,$('b_acc').value
 function peopleView(f){
   f=f||{};S.pf=f;
   render(topbar(f.mine?'My prayer group':'Participants',true)+'<select id="p_sem" onchange="peopleRender()">'+opts(S.lists.seminars.filter(function(s){return s.id!=='GEN'}),f.seminar||'','id','name','All retreats')+'</select>'+
-  '<select id="p_st" style="margin-top:8px" onchange="peopleRender()"><option value="">Everyone</option><option value="mine">My prayer group</option><option value="nopartner">No prayer partner yet</option><option value="Pending">Signed up, not paid</option><option value="Registered">Registered</option>'+(S.finance?'<option value="owe">Still owe money</option><option value="Paid">Paid in full</option>':'')+'</select>'+
+  '<select id="p_st" style="margin-top:8px" onchange="peopleRender()"><option value="">Everyone</option><option value="mine">My prayer group</option><option value="nopartner">No prayer partner yet</option>'+(S.finance?'<option value="bursary">💛 Bursary requested</option>':'')+'<option value="Pending">Signed up, not paid</option><option value="Registered">Registered</option>'+(S.finance?'<option value="owe">Still owe money</option><option value="Paid">Paid in full</option>':'')+'</select>'+
   '<input id="p_q" placeholder="Search name or phone…" style="margin-top:8px" oninput="peopleRender()">'+
   '<div class="grid" style="margin-top:8px"><button class="big" onclick="go(personEdit,{})"><span class="i">＋</span>Add participant</button>'+(S.admin?'<button class="big" onclick="go(boardView,{seminar:$(\'p_sem\').value})"><span class="i">🙏</span>Prayer groups</button>':'')+'</div>'+
   '<div id="p_out">'+(S.people?'':'<div class="loading">Loading…</div>')+'</div>');
-  if(f.mine)$('p_st').value='mine';
+  if(f.mine)$('p_st').value='mine';if(f.bursary)$('p_st').value='bursary';
   if(S.people)peopleRender();
   loadPeople();
 }
@@ -730,14 +764,14 @@ function peopleRender(){
   if(!S.people||!$('p_out'))return;
   var sm=$('p_sem').value,st=$('p_st').value,q=$('p_q').value.toLowerCase(),fin=S.finance,as=false;
   S.stack[S.stack.length-1]=[peopleView,{seminar:sm,mine:st==='mine'?1:0}];
-  var l=S.people.filter(function(p){return (!sm||p.Seminar===sm)&&(!st||(st==='owe'?Number(p.Balance)>0:st==='mine'?p['Prayer partner']===S.me:st==='nopartner'?!p['Prayer partner']:st==='Registered'?isReg(p):st==='Pending'?!isReg(p):p.Status===st))&&(!q||(p.Name+' '+p.Phone).toLowerCase().indexOf(q)>=0)});
+  var l=S.people.filter(function(p){return (!sm||p.Seminar===sm)&&(!st||(st==='owe'?Number(p.Balance)>0:st==='mine'?p['Prayer partner']===S.me:st==='nopartner'?!p['Prayer partner']:st==='bursary'?p.Bursary==='Requested':st==='Registered'?isReg(p):st==='Pending'?!isReg(p):p.Status===st))&&(!q||(p.Name+' '+p.Phone).toLowerCase().indexOf(q)>=0)});
   var reg=l.filter(isReg).length;
   var stat='<div class="stat"><div><b>'+(l.length-reg)+'</b><span>Signed up</span></div><div><b class="pos">'+reg+'</b><span>Registered</span></div></div>';
   if(fin){var due=l.reduce(function(a,p){return a+Number(p.Due||0)},0),paid=l.reduce(function(a,p){return a+Number(p['Paid (confirmed)']||0)},0);stat+='<div class="sub" style="text-align:center">Fees received '+money(paid)+' · still open '+money(due-paid)+'</div>'}
   if(as)stat+='<div class="msg info">Choose a prayer partner for each person – it saves right away. Only team members who are part of that retreat are listed.</div>';
   $('p_out').innerHTML=stat+'<div class="card"><div class="list">'+(l.map(function(p){
     if(as)return '<div class="it"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+'</div></div><div class="r" style="min-width:48%"><select onchange="setPartner(\''+p.ID+'\',this)">'+partnerOptions(p.Seminar,p['Prayer partner'])+'</select><span class="hint"></span></div></div>';
-    return '<div class="it tap" onclick="go(personView,\''+p.ID+'\')"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+(p['Prayer partner']?' · 🙏 '+esc(p['Prayer partner']):'')+(fin&&Number(p.Discount)?' · discount '+money(p.Discount):'')+'</div></div><div class="r">'+pchip(p.Status)+'<div class="sub">'+(fin&&Number(p.Balance)>0?'owes '+money(p.Balance):'')+'</div></div></div>'}).join('')||'<div class="sub">No one here yet.</div>')+'</div></div>';
+    return '<div class="it tap" onclick="go(personView,\''+p.ID+'\')"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+(p['Prayer partner']?' · 🙏 '+esc(p['Prayer partner']):'')+(fin&&p.Bursary==='Requested'?' · 💛 bursary requested':'')+(fin&&Number(p.Discount)?' · discount '+money(p.Discount):'')+'</div></div><div class="r">'+pchip(p.Status)+'<div class="sub">'+(fin&&Number(p.Balance)>0?'owes '+money(p.Balance):'')+'</div></div></div>'}).join('')||'<div class="sub">No one here yet.</div>')+'</div></div>';
 }
 function personView(id){
   var p=S.people.filter(function(x){return x.ID===id})[0];if(!p)return goBack();var fin=S.finance;
@@ -747,7 +781,7 @@ function personView(id){
   (p.Phone?'<div style="margin:8px 0"><a href="tel:'+esc(p.Phone)+'">📞 '+esc(p.Phone)+'</a> · <a target="_blank" href="https://wa.me/'+phone254(p.Phone)+'">WhatsApp</a></div>':'')+
   '<label>🙏 Prayer partner</label><select onchange="setPartner(\''+p.ID+'\',this)">'+partnerOptions(p.Seminar,p['Prayer partner'])+'</select><span class="hint"></span>'+
   (fin?'<div class="stat"><div><b>'+money(p.Due)+'</b><span>Due</span></div><div><b class="pos">'+money(p['Paid (confirmed)'])+'</b><span>Paid</span></div><div><b class="'+(p.Balance>0?'neg':'')+'">'+money(p.Balance)+'</b><span>Open</span></div></div>'+
-    (Number(p.Discount)?'<div class="msg info">Discount '+money(p.Discount)+(p['Discount reason']?' – '+esc(p['Discount reason']):'')+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div>':'')+
+    bursaryBox(p)+(Number(p.Discount)&&p.Bursary!=='Approved'?'<div class="msg info">Discount '+money(p.Discount)+(p['Discount reason']?' – '+esc(p['Discount reason']):'')+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div>':'')+
     '<button class="btn" onclick="go(txForm,{from:\'OUT-PART\',to:\'KE-PHONE\',participantId:\''+p.ID+'\',seminar:\''+p.Seminar+'\'})">+ Add payment</button>':'')+
   (p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(wa)+'">Send personal page link on WhatsApp</a>':'')+
   (S.viewAs&&p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(p.link+'&test=1')+'">👁 View their page (test)</a>':'')+
@@ -755,6 +789,14 @@ function personView(id){
   (fin?'<div class="card"><h3>Payments</h3><div class="list">'+(p.payments.map(function(x){return '<div class="it"><div class="l"><div class="t">'+money(x.amount)+'</div><div class="sub">'+esc(x.date)+' · '+esc(x.code)+(x.party&&x.party!==p.Name?' · from '+esc(x.party):'')+'</div></div><div class="r">'+chip(x.status)+'</div></div>'}).join('')||'<div class="sub">No payments yet.</div>')+'</div></div>':'')+
   '<button class="btn light" onclick="go(personEdit,{id:\''+p.ID+'\'})">Edit details'+(fin?' / price / discount':'')+'</button>');
 }
+function bursaryBox(p){var st=p.Bursary||'',max=(Number(p.Price)||0)-((sem(p.Seminar).deposit)||0);
+  var head=st==='Requested'?'<div class="msg info">💛 <b>Bursary requested</b>'+(p['Bursary note']?': “'+esc(p['Bursary note'])+'”':'')+'</div>':st==='Approved'?'<div class="msg ok">💛 Bursary approved: <b>'+money(p.Discount)+'</b></div>':st==='Not approved'?'<div class="msg info">💛 Bursary not approved</div>':'';
+  return '<div class="card"><h3>💛 Bursary</h3>'+head+
+  '<label>Amount (KES, at most '+money(max)+')</label><input id="bu_a" type="number" inputmode="numeric" value="'+(st==='Approved'?esc(p.Discount):'')+'">'+
+  '<div class="opts" style="display:flex;gap:6px;flex-wrap:wrap">'+[5000,8000,10000,max].filter(function(v,i,a){return v>0&&a.indexOf(v)===i}).map(function(v){return '<button style="width:auto;flex:1" onclick="$(\'bu_a\').value='+v+'">'+money(v)+'</button>'}).join('')+'</div>'+
+  '<div id="bu_m"></div><button class="btn" onclick="bursaryDo(\''+p.ID+'\',\'Approved\',this)">'+(st==='Approved'?'Change bursary':'Approve bursary')+'</button>'+
+  (st&&st!=='Not approved'?'<button class="btn light" onclick="bursaryDo(\''+p.ID+'\',\'Not approved\',this)">Not approved</button>':'')+'</div>'}
+function bursaryDo(id,dec,btn){busy(btn,true);call('teamBursary',AUTH,id,dec,dec==='Approved'?$('bu_a').value:0).then(function(l){S.people=l;return refreshHome()}).then(function(){personView(id)}).catch(function(e){busy(btn,false);showMsg('bu_m',e,'err')})}
 function personEdit(o){
   var p=o.id?S.people.filter(function(x){return x.ID===o.id})[0]:{Seminar:(S.pf&&S.pf.seminar)||'',Role:'Participant'};
   var sems=S.lists.seminars.filter(function(s){return s.id!=='GEN'}),fin=S.finance;
