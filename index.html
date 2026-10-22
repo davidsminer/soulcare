@@ -285,18 +285,17 @@ function teamHome(){
   var x='<div class="hero sm" style="background-image:url('+HERO+')"><div class="ttl">Soul Care</div></div><div class="sub">Hi '+esc(S.me)+' 👋</div>';
   x+=(h.news||S.admin)?'<div class="card news"><h3>📣 Team news</h3><div>'+(h.news?linkify(h.news):'<span class="sub">Nothing yet. Add the next team meeting here (date, time, link).</span>')+'</div>'+(S.admin?'<div class="hint"><a href="#" onclick="go(newsEdit);return false">✏️ Edit team news</a></div>':'')+'</div>':'';
   var mySems=h.mySems||[];
-  x+=h.seminars.map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
+  var mt=h.myTasks||[];
+  x+='<div class="card"><h3>✅ My tasks</h3>'+(mt.length?'<div class="list">'+mt.map(function(t){return '<div class="it tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="l"><div class="t">'+esc(t.title)+'</div>'+(t.due?'<div class="sub'+(t.due<today()?' neg':'')+'">due '+esc(t.due)+'</div>':'')+'</div><div class="r">›</div></div>'}).join('')+'</div>':'<div class="sub">Nothing on your list.</div>')+
+    '<button class="btn light small" style="margin-top:10px" onclick="go(tasksView,{})">All tasks ›</button></div>';
+  x+='<div class="grid"><button class="big'+(S.admin?'':' main')+'" onclick="go(peopleView,{})"><span class="i">👥</span>Participants</button>'+(S.admin?'<button class="big" onclick="go(boardView,{})"><span class="i">🙏</span>Prayer groups</button><button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
+    (fin?'<button class="big" onclick="go(checkView)"><span class="i">💳</span>Payments to check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>';
+  x+=h.seminars.filter(function(s){return S.admin||!mySems.length||mySems.indexOf(s.id)>=0}).map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
     return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
     '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+((s.booked||s.planned)||'–')+(fin?' ✏️':'')+'</b><span>'+(s.booked?'Places booked':'Planned')+'</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
     (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+
     (inIt?'<div class="mine"><b>🙏 My prayer group</b>'+(mine.length?'<div class="list">'+mine.map(function(m){return '<div class="it"><div class="l tap" onclick="openPerson(\''+m.id+'\')"><div class="t">'+esc(m.name)+'</div><div>'+pchip(m.status)+'</div></div><div class="r" style="white-space:nowrap">'+(m.phone?'<a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0 4px 0 0" href="tel:'+esc(String(m.phone).replace(/\s/g,''))+'">📞</a><a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0" target="_blank" href="https://wa.me/'+phone254(m.phone)+'">💬</a>':'<span class="sub">no phone</span>')+'</div></div>'}).join('')+'</div>':'<div class="sub">No one assigned to you yet.</div>')+'</div>':'')+
     '<button class="btn light small" style="margin-top:10px" onclick="go(peopleView,{seminar:\''+s.id+'\'})">All participants of this retreat ›</button></div>'}).join('');
-  var mt=h.myTasks||[];
-  x+='<div class="card"><h3>✅ My tasks</h3>'+(mt.length?'<div class="list">'+mt.map(function(t){return '<div class="it tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="l"><div class="t">'+esc(t.title)+'</div>'+(t.due?'<div class="sub'+(t.due<today()?' neg':'')+'">due '+esc(t.due)+'</div>':'')+'</div><div class="r">›</div></div>'}).join('')+'</div>':'<div class="sub">Nothing on your list.</div>')+
-    '<button class="btn light small" style="margin-top:10px" onclick="go(tasksView,{})">All tasks ›</button></div>';
-  x+='<div class="card"><h3>📅 I will be at</h3><div class="opts" id="my_sems">'+S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=!mySems.length||mySems.indexOf(s.id)>=0;return '<button data-v="'+s.id+'" class="'+(on?'on':'')+'" onclick="this.classList.toggle(\'on\');mySemSave()">'+esc(rtParts(s.name).nm)+'</button>'}).join('')+'</div><div id="my_semm" class="hint">Tap to change. This decides which prayer groups you can be part of.</div></div>';
-  x+='<div class="grid">'+(S.admin?'<button class="big main" onclick="go(boardView,{})"><span class="i">🙏</span>Prayer groups</button><button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
-    (fin?'<button class="big" onclick="go(checkView)"><span class="i">💳</span>Payments to check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>';
   if(fin){
     var wallets=h.balances.filter(function(b){return b.group!=='Personal'}),pers=h.balances.filter(function(b){return b.group==='Personal'&&Math.abs(b.balance)>0.5});
     x+='<h2 style="margin-top:28px">Money</h2>'+
@@ -409,7 +408,7 @@ function taskToggle(id,btn){var t=S.tasks.filter(function(x){return x.id===id})[
 function taskEdit(o){var t={title:'',description:'',due:'',responsible:S.me,status:'To do',createdBy:S.me};
   if(o.id){var f=(S.tasks||[]).concat(S.home.myTasks||[]).filter(function(x){return x.id===o.id})[0];if(f)t=f}
   var canDel=o.id&&(t.createdBy===S.me||S.admin);
-  render(topbar(o.id?'Task':'New task',true)+'<div class="card">'+
+  render(topbar(o.id?'Task':'New task',true)+(o.id?'<div style="margin:6px 0 10px"><span class="chip '+(t.status==='Done'?'c-Paid':'c-Pending')+'">'+(t.status==='Done'?'✓ Done':'To do')+'</span></div>':'')+'<div class="card">'+
   '<label style="margin-top:0">Title</label><input id="tk_t" value="'+esc(t.title)+'" placeholder="e.g. Book the bus for Saturday">'+
   '<label>Who is responsible?</label><select id="tk_r">'+teamOpts(t.responsible)+'</select>'+
   '<label>Due date (optional)</label><input id="tk_d" type="date" value="'+esc(t.due)+'">'+
@@ -487,7 +486,7 @@ function txForm(o){
   (t.ID?'':'<div class="card"><label style="margin-top:0">📋 Have an M-Pesa SMS? Paste it here</label><textarea id="f_sms" style="min-height:64px" placeholder="Paste the whole message – the form fills itself in" oninput="txSms()"></textarea><div id="f_smsinfo"></div></div>')+
   '<div class="card">'+
   '<label style="margin-top:0">From</label>'+accSelect('f_from',from,'from')+
-  '<div id="f_pwrap" class="hide"><label>Which participant?</label><input id="f_pname" list="f_plist" placeholder="Start typing a name…" value="'+esc(personLabel(t['Participant ID']||o.participantId||''))+'"><datalist id="f_plist">'+personList().map(function(x){return '<option value="'+esc(x)+'">'}).join('')+'</datalist>'+
+  '<div id="f_pwrap" class="hide"><label id="f_pl">Which participant?</label><input id="f_pname" list="f_plist" placeholder="Start typing a name…" value="'+esc(personLabel(t['Participant ID']||o.participantId||''))+'"><datalist id="f_plist">'+personList().map(function(x){return '<option value="'+esc(x)+'">'}).join('')+'</datalist>'+
     '<div class="hint">Leave empty if you don\'t know yet. <a href="#" onclick="addSplit();return false">This payment covers several people</a></div><div id="f_splits"></div></div>'+
   '<div id="f_partyw" class="hide"><label id="f_partyl">Name</label><input id="f_party" value="'+esc(S.form.party0)+'"></div>'+
   '<label>To</label>'+accSelect('f_to',to,'to')+
@@ -513,7 +512,7 @@ function txForm(o){
 function txMore(){$('f_more').className='';$('f_more_s').className='hide'}
 function txUpdate(){
   var f=$('f_from').value,t=$('f_to').value,fa=acc(f),ta=acc(t),fo=fa.group==='Outside',to=ta.group==='Outside';
-  $('f_pwrap').className=f==='OUT-PART'?'':'hide';
+  $('f_pwrap').className=(f==='OUT-PART'||f==='OUT-DONOR')?'':'hide';$('f_pl').textContent=f==='OUT-DONOR'?'For which participant(s)? (optional)':'Which participant?';
   $('f_semw').className=f==='OUT-PART'?'hide':'';
   $('f_partyw').className=(f==='OUT-DONOR'||f==='OUT-VENDOR'||t==='OUT-VENDOR')?'':'hide';
   $('f_partyl').textContent=f==='OUT-DONOR'?'Donor name':f==='OUT-VENDOR'?'From whom?':'Paid to (shop / person)';
@@ -575,7 +574,7 @@ function saveTx(btn){
   if(!f||!t){showMsg('f_msg','Please choose where the money came from and where it went.','err');return}
   if(!$('f_catw').classList.contains('hide')&&!$('f_cat').value){showMsg('f_msg','Please choose what it was for.','err');return}
   var pid='',splits=[];
-  if(f==='OUT-PART'){var sw=$('f_splits');
+  if(f==='OUT-PART'||f==='OUT-DONOR'){var sw=$('f_splits');
     if(sw.children.length){var bad=false;[].forEach.call(sw.children,function(r){var v=r.children[0].value,id=personByLabel(v);if(v&&!id)bad=true;if(id)splits.push({participantId:id,amount:r.children[1].value})});
       if(bad){showMsg('f_msg','One of the names was not found. Please pick names from the list.','err');return}}
     else{pid=personByLabel($('f_pname').value);if($('f_pname').value.trim()&&!pid){showMsg('f_msg','Participant not found. Please pick a name from the list, or leave it empty if unknown.','err');return}}}
