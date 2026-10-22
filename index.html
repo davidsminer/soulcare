@@ -329,8 +329,8 @@ function budgetRender(){
   x+='<h2 style="margin-top:24px">The retreats</h2>'+d.sems.map(function(s,i){
     return '<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;line-height:1.1;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
     '<div class="stat"><div><b>'+s.planned+'</b><span>Planned</span></div><div><b>'+s.signed+'</b><span>Signed up</span></div><div><b class="pos">'+s.registered+'</b><span>Registered</span></div></div>'+
-    frow('','Participants × '+money(s.costP)+' at the venue','')+'<div class="hint" style="margin-top:-4px">'+s.n+' × '+money(s.costP)+' = '+money(s.n*s.costP)+(s.signed>s.planned?' (more signed up than planned)':'')+'</div>'+
-    frow('','Team members × '+money(s.costT)+' at the venue','')+'<div class="hint" style="margin-top:-4px">'+s.team+' × '+money(s.costT)+' = '+money(s.team*s.costT)+' · team members are counted from Team → “Part of which retreats?”</div>'+
+    frow('','Venue: '+s.n+' participants × '+money(s.costP),s.n*s.costP)+(s.signed>s.planned?'<div class="hint">More signed up than planned – using the real number.</div>':'')+
+    frow('','Venue: '+s.team+' team members × '+money(s.costT),s.team*s.costT)+
     frow('','Participant fees ('+s.n+' × '+money(s.price)+')',s.fees)+frow('','Received so far',s.received)+
     frow('','Discounts promised'+(s.discounted?' ('+s.discounted+' people)':''),s.discounts)+
     '<button class="btn light small" onclick="go(planEdit,'+i+')">Edit planned numbers</button></div>'}).join('');
