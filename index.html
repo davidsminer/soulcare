@@ -294,6 +294,12 @@ function partBursary(){
   render(topbarP('Apply for a bursary')+'<div class="card"><p>Bursaries help participants who cannot pay the full cost. They come from donations, so the team looks at each request personally and will let you know on your page.</p><p>The registration fee is always paid by you.</p>'+
   '<label>Anything you would like us to know? (optional)</label><textarea id="b_note" style="min-height:100px"></textarea><div id="b_msg"></div><button class="btn" onclick="partBursarySend(this)">Send my request</button></div>')}
 function partBursarySend(btn){busy(btn,true);call('participantBursary',AUTH,{note:$('b_note').value}).then(function(r){S.pv=r.view;partHome('Thank you – your bursary request has been sent.')}).catch(function(e){busy(btn,false);showMsg('b_msg',e,'err')})}
+function topStatus(p,sm){var st=p.Status,rep=Number(p['Paid (reported)'])||0;
+  if(st==='Paid'||st==='Registered'||st==='Free')return '<div class="msg ok">✓ <b>You are registered.</b> Your place is secured – we look forward to seeing you!</div>';
+  if(rep>0)return '<div class="msg info">⏳ <b>Thank you for your payment.</b> Your registration will be confirmed as soon as the team has checked it.</div>';
+  return '<div class="msg info"><b>You are signed up!</b> Your place is secured once the registration fee of '+money(sm.deposit||2000)+' is paid – <a href="#" onclick="$(\'paysec\').scrollIntoView({behavior:\'smooth\'});return false">see Payment below</a>.</div>'}
+function myInfo(p,sm){var q=[['Name','Name'],['Phone','Phone'],['Gender','Gender'],['Age','Age'],['Nationality','Nationality'],['Dietary needs','Dietary needs'],['Photo consent','Photos'],['Journey with God','Journey with God'],['Hope for retreat','Hope for the retreat'],['Prayer requests','Prayer requests']].filter(function(x){return p[x[0]]!==''&&p[x[0]]!=null});
+  return '<div style="margin-top:8px"><div class="sub">Retreat</div><div>'+esc(rtParts(sm.name).nm)+'</div></div>'+q.map(function(x){return '<div style="margin:10px 0"><div class="sub">'+esc(x[1])+'</div><div>'+esc(p[x[0]])+'</div></div>'}).join('')+'<div class="hint">Something wrong or changed? Let us know (see Questions above).</div>'}
 function partReport(){
   render(topbarP('Report a payment')+'<div class="card"><p>Open the M-Pesa confirmation SMS for your payment, copy the <b>whole message</b> and paste it below.</p>'+
   '<textarea id="r_sms" style="min-height:130px" placeholder="TJ1FX66L6H Confirmed. Ksh2,000.00 sent to SOUL CARE RETREAT on 21/10/26 at 3:15 PM…" oninput="smsFill(\'r\')"></textarea><div id="r_smsinfo" class="hint"></div>'+
@@ -509,6 +515,7 @@ function accSelect(id,sel,dir){
   var outs=OUTS[dir].map(function(o){return '<option value="'+o[0]+'"'+(o[0]===sel?' selected':'')+'>'+esc(o[1])+'</option>'}).join('');
   return '<select id="'+id+'" onchange="txUpdate()"><option value="">Choose…</option>'+(dir==='from'?'<optgroup label="From outside">'+outs+'</optgroup>':'')+grp('Wallet','Ministry accounts (Kenya)')+grp('Channel','Donation accounts abroad')+grp('Personal','Private money (paid back later)')+(dir==='to'?'<optgroup label="Outside">'+outs+'</optgroup>':'')+'</select>';
 }
+function peopleOpts(sel){var L=personList();return '<option value="">Choose participant…</option>'+S.lists.people.map(function(p,i){return '<option value="'+esc(p.id)+'"'+(p.id===sel?' selected':'')+'>'+esc(L[i])+'</option>'}).join('')}
 function personList(){return S.lists.people.map(function(p){return p.name+' – '+rtParts(sem(p.seminar).name).nm})}
 function personByLabel(v){v=String(v||'').trim();if(!v)return '';var L=personList();for(var i=0;i<L.length;i++)if(L[i]===v)return S.lists.people[i].id;var m=S.lists.people.filter(function(p){return p.name.toLowerCase()===v.toLowerCase()});return m.length===1?m[0].id:''}
 function personLabel(id){var i=S.lists.people.map(function(p){return p.id}).indexOf(id);return i>=0?personList()[i]:''}
