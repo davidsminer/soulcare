@@ -161,7 +161,7 @@ function phone254(p){var d=String(p||'').replace(/\D/g,'');if(d.indexOf('0')===0
 function applyInit(r,refresh){
   S.mode=r.mode;
   S.pay=r.pay||{};
-  if(r.mode==='team'){S.me=r.me;S.admin=r.admin;S.finance=r.finance;S.lists=r.lists;S.home=r.home;
+  if(r.mode==='team'){S.me=r.me;S.admin=r.admin;S.viewAs=r.viewAs;S.finance=r.finance;S.lists=r.lists;S.home=r.home;
     if(!refresh){S.stack=[[teamHome]];teamHome()}else if(S.stack.length===1&&S.stack[0][0]===teamHome)teamHome();
     if(refresh||!S.people)loadPeople();}
   else if(r.mode==='participant'){S.pv=r.view;S.info=r.info;S.payTo=r.payTo;S.contact=r.contact;S.arrival=r.arrival;S.thanks=r.thanks;partHome()}
@@ -287,12 +287,16 @@ function teamHome(){
   var mySems=h.mySems||[];
   x+=h.seminars.map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
     return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
-    '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+(s.planned||'–')+(fin?' ✏️':'')+'</b><span>Planned</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
+    '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+((s.booked||s.planned)||'–')+(fin?' ✏️':'')+'</b><span>'+(s.booked?'Places booked':'Planned')+'</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
     (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+
-    (inIt?'<div class="mine"><b>🙏 My prayer group</b>'+(mine.length?'<div class="list">'+mine.map(function(m){return '<div class="it tap" onclick="openPerson(\''+m.id+'\')"><div class="l">'+esc(m.name)+'</div><div class="r">'+pchip(m.status)+'</div></div>'}).join('')+'</div>':'<div class="sub">No one assigned to you yet.</div>')+'</div>':'')+
+    (inIt?'<div class="mine"><b>🙏 My prayer group</b>'+(mine.length?'<div class="list">'+mine.map(function(m){return '<div class="it"><div class="l tap" onclick="openPerson(\''+m.id+'\')"><div class="t">'+esc(m.name)+'</div><div>'+pchip(m.status)+'</div></div><div class="r" style="white-space:nowrap">'+(m.phone?'<a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0 4px 0 0" href="tel:'+esc(String(m.phone).replace(/\s/g,''))+'">📞</a><a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0" target="_blank" href="https://wa.me/'+phone254(m.phone)+'">💬</a>':'<span class="sub">no phone</span>')+'</div></div>'}).join('')+'</div>':'<div class="sub">No one assigned to you yet.</div>')+'</div>':'')+
     '<button class="btn light small" style="margin-top:10px" onclick="go(peopleView,{seminar:\''+s.id+'\'})">All participants of this retreat ›</button></div>'}).join('');
-  x+=(S.admin||fin)?'<div class="grid">'+(S.admin?'<button class="big main" onclick="go(boardView,{})"><span class="i">🙏</span>Prayer groups</button><button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
-    (fin?'<button class="big" onclick="go(checkView)"><span class="i">✅</span>To check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>':'';
+  var mt=h.myTasks||[];
+  x+='<div class="card"><h3>✅ My tasks</h3>'+(mt.length?'<div class="list">'+mt.map(function(t){return '<div class="it tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="l"><div class="t">'+esc(t.title)+'</div>'+(t.due?'<div class="sub'+(t.due<today()?' neg':'')+'">due '+esc(t.due)+'</div>':'')+'</div><div class="r">›</div></div>'}).join('')+'</div>':'<div class="sub">Nothing on your list.</div>')+
+    '<button class="btn light small" style="margin-top:10px" onclick="go(tasksView,{})">All tasks ›</button></div>';
+  x+='<div class="card"><h3>📅 I will be at</h3><div class="opts" id="my_sems">'+S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=!mySems.length||mySems.indexOf(s.id)>=0;return '<button data-v="'+s.id+'" class="'+(on?'on':'')+'" onclick="this.classList.toggle(\'on\');mySemSave()">'+esc(rtParts(s.name).nm)+'</button>'}).join('')+'</div><div id="my_semm" class="hint">Tap to change. This decides which prayer groups you can be part of.</div></div>';
+  x+='<div class="grid">'+(S.admin?'<button class="big main" onclick="go(boardView,{})"><span class="i">🙏</span>Prayer groups</button><button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
+    (fin?'<button class="big" onclick="go(checkView)"><span class="i">💳</span>Payments to check'+(nCheck?'<span class="badge">'+nCheck+'</span>':'')+'</button>':'')+'</div>';
   if(fin){
     var wallets=h.balances.filter(function(b){return b.group!=='Personal'}),pers=h.balances.filter(function(b){return b.group==='Personal'&&Math.abs(b.balance)>0.5});
     x+='<h2 style="margin-top:28px">Money</h2>'+
@@ -353,13 +357,18 @@ function budgetRender_(){
 function planFromHome(id){var b=S.home.budget;if(!b)return;var i=b.sems.map(function(x){return x.id}).indexOf(id);if(i>=0)go(planEdit,i)}
 function planEdit(i){var s=S.home.budget.sems[i];
   render(topbar('Planned numbers',true)+'<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
-  '<label>How many participants do we expect?</label><input id="pl_n" type="number" inputmode="numeric" value="'+s.planned+'">'+
-  '<label>How many team members will stay at the venue?</label><input id="pl_t" type="number" inputmode="numeric" value="'+(s.teamPlanned==null?'':s.teamPlanned)+'" placeholder="'+s.teamAssigned+' (from the team list)">'+
-  '<div class="hint">Leave empty to count the team members marked for this retreat in Team ('+s.teamAssigned+').</div>'+
+  '<label>Places booked at the venue (participants + team)</label><input id="pl_b" type="number" inputmode="numeric" value="'+(s.booked||'')+'" oninput="plUpd()" placeholder="not booked yet">'+
+  '<label>Team members staying at the venue</label><input id="pl_t" type="number" inputmode="numeric" value="'+(s.teamPlanned==null?'':s.teamPlanned)+'" placeholder="'+s.teamAssigned+' (from the team list)" oninput="plUpd()">'+
+  '<div class="hint">Leave empty to count the team members who will be at this retreat ('+s.teamAssigned+').</div>'+
+  '<label>Participants expected</label><input id="pl_n" type="number" inputmode="numeric" value="'+s.planned+'">'+
+  '<div id="pl_hint" class="hint"></div>'+
   '<label>Venue price per person (KES, full board)</label><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
   '<div class="hint">Same for participants and team members. (Participants pay '+money(s.price)+'.)</div>'+
-  '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>')}
-function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,team:$('pl_t').value,costP:$('pl_cp').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
+  '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>');
+  S.plTeamA=s.teamAssigned;plUpd()}
+function plUpd(){var b=Number($('pl_b').value)||0,t=$('pl_t').value===''?S.plTeamA:Number($('pl_t').value)||0;
+  if(b){$('pl_n').value=Math.max(0,b-t);$('pl_n').disabled=true;$('pl_hint').textContent=b+' places − '+t+' team members = '+Math.max(0,b-t)+' participants'}else{$('pl_n').disabled=false;$('pl_hint').textContent=''}}
+function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,booked:$('pl_b').value,planned:$('pl_n').value,team:$('pl_t').value,costP:$('pl_cp').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
 function bgCalc(){window.NOKES=true;try{bgCalc_()}finally{window.NOKES=false}}
 function bgCalc_(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
   $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> extra discount.':'<b>No room for more discounts yet</b> – the plan needs '+money(-tot)+' more than we have and expect. Raise more funds or reduce planned costs.'}
@@ -380,6 +389,41 @@ function budgetSave(id,btn){busy(btn,true);
   call('budgetSave',AUTH,{id:id,category:$('bl_cat').value,description:$('bl_desc').value,amount:$('bl_amt').value,cur:$('bl_cur').value,seminar:$('bl_sem').value,notes:$('bl_notes').value})
   .then(function(d){S.home.budget=d;goBack()}).catch(function(e){busy(btn,false);showMsg('bl_msg',e,'err')})}
 function budgetDel(id,btn){if(!confirm('Delete this planned cost?'))return;busy(btn,true);call('budgetDelete',AUTH,id).then(function(d){S.home.budget=d;goBack()}).catch(function(e){busy(btn,false);alert(e)})}
+function mySemSave(){var all=$('my_sems').querySelectorAll('button'),on=[].filter.call(all,function(b){return b.classList.contains('on')}).map(function(b){return b.dataset.v});
+  if(!on.length){$('my_semm').textContent='Please keep at least one retreat.';all[0].classList.add('on');return}
+  $('my_semm').textContent='saving…';call('teamMySeminars',AUTH,on.length===all.length?[]:on).then(function(){S.home.mySems=on.length===all.length?[]:on;$('my_semm').textContent='✓ saved';refreshHome()}).catch(function(e){$('my_semm').textContent=String(e)})}
+function teamOpts(sel){return opts(S.lists.team.filter(function(m){return m.active||m.name===sel}).map(function(m){return {v:m.name,l:m.name+(m.name===S.me?' (me)':'')}}),sel,'v','l')}
+function tasksView(o){o=o||{};S.tf=S.tf||'mine';
+  render(topbar('Tasks',true)+'<select id="t_f" onchange="S.tf=this.value;tasksRender()"><option value="mine">My tasks</option><option value="open">All open tasks</option><option value="given">Tasks I gave to others</option><option value="done">Done</option></select>'+
+  '<button class="btn" onclick="go(taskEdit,{})">＋ New task</button><div id="t_out">'+(S.tasks?'':'<div class="loading">Loading…</div>')+'</div>');
+  $('t_f').value=S.tf;if(S.tasks)tasksRender();
+  call('tasks',AUTH).then(function(l){S.tasks=l;if($('t_out'))tasksRender()}).catch(function(e){if($('t_out'))$('t_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
+}
+function tasksRender(){var f=S.tf,l=S.tasks.filter(function(t){return f==='mine'?(t.responsible===S.me&&t.status!=='Done'):f==='open'?t.status!=='Done':f==='given'?(t.createdBy===S.me&&t.responsible!==S.me&&t.status!=='Done'):t.status==='Done'});
+  l.sort(function(a,b){return (a.due||'9999')<(b.due||'9999')?-1:1});
+  $('t_out').innerHTML='<div class="card"><div class="list">'+(l.map(function(t){var done=t.status==='Done';
+    return '<div class="it"><div class="l tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="t" style="'+(done?'text-decoration:line-through;color:var(--mute)':'')+'">'+esc(t.title)+'</div><div class="sub">'+esc(t.responsible)+(t.due?' · <span class="'+(!done&&t.due<today()?'neg':'')+'">due '+esc(t.due)+'</span>':'')+'</div></div>'+
+    '<div class="r"><button class="btn small '+(done?'light':'')+'" style="width:auto" onclick="taskToggle(\''+t.id+'\',this)">'+(done?'↺ Reopen':'✓ Done')+'</button></div></div>'}).join('')||'<div class="sub">No tasks here.</div>')+'</div></div>'}
+function taskToggle(id,btn){var t=S.tasks.filter(function(x){return x.id===id})[0];busy(btn,true);
+  call('taskStatus',AUTH,id,t.status==='Done'?'To do':'Done').then(function(l){S.tasks=l;S.home.myTasks=l.filter(function(x){return x.responsible===S.me&&x.status!=='Done'});if($('t_out'))tasksRender();else if($('tk_msg'))goBack()}).catch(function(e){busy(btn,false);alert(e)})}
+function taskEdit(o){var t={title:'',description:'',due:'',responsible:S.me,status:'To do',createdBy:S.me};
+  if(o.id){var f=(S.tasks||[]).concat(S.home.myTasks||[]).filter(function(x){return x.id===o.id})[0];if(f)t=f}
+  var canDel=o.id&&(t.createdBy===S.me||S.admin);
+  render(topbar(o.id?'Task':'New task',true)+'<div class="card">'+
+  '<label style="margin-top:0">Title</label><input id="tk_t" value="'+esc(t.title)+'" placeholder="e.g. Book the bus for Saturday">'+
+  '<label>Who is responsible?</label><select id="tk_r">'+teamOpts(t.responsible)+'</select>'+
+  '<label>Due date (optional)</label><input id="tk_d" type="date" value="'+esc(t.due)+'">'+
+  '<label>Description (optional)</label><textarea id="tk_x" style="min-height:90px">'+esc(t.description||'')+'</textarea>'+
+  (o.id?'<div class="hint">Created by '+esc(t.createdBy||'?')+' · '+(t.status==='Done'?'✓ Done'+(t.doneAt?' on '+esc(t.doneAt):''):'To do')+'</div>':'')+
+  '<div id="tk_msg"></div><button class="btn" onclick="taskSaveC(\''+(o.id||'')+'\',this)">Save</button>'+
+  (o.id?'<button class="btn light" onclick="taskToggle(\''+o.id+'\',this)">'+(t.status==='Done'?'↺ Mark as not done':'✓ Mark as done')+'</button>':'')+
+  (canDel?'<button class="btn red" onclick="taskDel(\''+o.id+'\',this)">Delete task</button>':'')+'</div>')}
+function taskSaveC(id,btn){var d={id:id,title:$('tk_t').value,responsible:$('tk_r').value,due:$('tk_d').value,description:$('tk_x').value};busy(btn,true);
+  call('taskSave',AUTH,d).then(function(l){S.tasks=l;S.home.myTasks=l.filter(function(x){return x.responsible===S.me&&x.status!=='Done'});
+    var who=S.lists.team.filter(function(m){return m.name===d.responsible})[0];
+    if(!id&&who&&who.name!==S.me&&who.phone){render(topbar('Task saved',false)+'<div class="msg ok">✓ Task saved for '+esc(who.name)+'.</div><a class="btn" style="text-align:center;text-decoration:none" target="_blank" href="https://wa.me/'+phone254(who.phone)+'?text='+encodeURIComponent('Hi '+who.name.split(' ')[0]+', I added a task for you in the Soul Care app: '+d.title+(d.due?' (due '+d.due+')':''))+'">Let '+esc(who.name.split(' ')[0])+' know on WhatsApp</a><button class="btn light" onclick="goBack()">Back to tasks</button>')}
+    else goBack()}).catch(function(e){busy(btn,false);showMsg('tk_msg',e,'err')})}
+function taskDel(id,btn){if(!confirm('Delete this task?'))return;busy(btn,true);call('taskDelete',AUTH,id).then(function(l){S.tasks=l;S.home.myTasks=l.filter(function(x){return x.responsible===S.me&&x.status!=='Done'});goBack()}).catch(function(e){busy(btn,false);alert(e)})}
 function newsEdit(){
   render(topbar('Team news',true)+'<div class="card"><div class="sub">Shown at the top of every team member\'s app. Links and phone numbers become tappable.</div><textarea id="n_txt" style="min-height:160px" placeholder="Next team meeting: Tuesday 4 Nov, 7 pm&#10;Zoom: https://…">'+esc(S.home.news||'')+'</textarea><div id="n_msg"></div><button class="btn" onclick="newsSave(this)">Save</button></div>');
 }
@@ -707,7 +751,7 @@ function personView(id){
     (Number(p.Discount)?'<div class="msg info">Discount '+money(p.Discount)+(p['Discount reason']?' – '+esc(p['Discount reason']):'')+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div>':'')+
     '<button class="btn" onclick="go(txForm,{from:\'OUT-PART\',to:\'KE-PHONE\',participantId:\''+p.ID+'\',seminar:\''+p.Seminar+'\'})">+ Add payment</button>':'')+
   (p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(wa)+'">Send personal page link on WhatsApp</a>':'')+
-  (S.admin&&p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(p.link+'&test=1')+'">👁 View their page (test)</a>':'')+
+  (S.viewAs&&p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(p.link+'&test=1')+'">👁 View their page (test)</a>':'')+
   answers(p)+
   (fin?'<div class="card"><h3>Payments</h3><div class="list">'+(p.payments.map(function(x){return '<div class="it"><div class="l"><div class="t">'+money(x.amount)+'</div><div class="sub">'+esc(x.date)+' · '+esc(x.code)+(x.party&&x.party!==p.Name?' · from '+esc(x.party):'')+'</div></div><div class="r">'+chip(x.status)+'</div></div>'}).join('')||'<div class="sub">No payments yet.</div>')+'</div></div>':'')+
   '<button class="btn light" onclick="go(personEdit,{id:\''+p.ID+'\'})">Edit details'+(fin?' / price / discount':'')+'</button>');
@@ -760,19 +804,19 @@ function semNames(a){return a&&a.length?a.map(function(id){return rtParts(sem(id
 function teamRender(){
   var l=S.members;
   var base=(l.filter(function(m){return m.link})[0]||{link:''}).link.split('?')[0];
-  $('tm_out').innerHTML=(base?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="memberEdit(-1)">+ Add team member</button>'+
-  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="memberEdit('+i+')">Edit</button></div></div>'+
+  $('tm_out').innerHTML=(base&&S.viewAs?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="memberEdit(-1)">+ Add team member</button>'+
+  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link&&S.viewAs?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="memberEdit('+i+')">Edit</button></div></div>'+
     (m.group.length?'<div class="list" style="margin-top:6px">'+m.group.map(function(p){return '<div class="it"><div class="l"><div>'+esc(p.name)+'</div><div class="sub">'+esc(rtParts(sem(p.seminar).name).nm)+'</div></div><div class="r">'+pchip(p.status)+'</div></div>'}).join('')+'</div>':'')+
     '</div>'}).join('')+'<div class="hint">To assign a prayer partner: Participants → tap a name → Edit details.</div>';
 }
 function memberEdit(i){
   var m=i>=0?S.members[i]:{name:'',role:'Team member',phone:'',active:true,link:'',seminars:[]};
   var wa=m.link&&m.phone?'https://wa.me/'+phone254(m.phone)+'?text='+encodeURIComponent('Hello '+m.name+', here is your personal Soul Care link. Please keep it private: '+m.link):'';
-  var desc={'Team member':'Participants and prayer groups, no money','Finance':'Also tracks money','Admin':'Everything, including this team list'};
+  var desc={'Team member':'Participants, prayer groups and tasks – no money','Leader':'Everything: money, budget, team list, prayer groups','Admin':'Everything, plus viewing the app as someone else'};
   render(topbar(i>=0?'Edit team member':'New team member',false)+'<div class="card">'+
   '<label>Name</label><input id="m_name" value="'+esc(m.name)+'">'+
   '<label>Part of which retreats?</label><div class="opts" id="m_sems">'+S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=!m.seminars||!m.seminars.length||m.seminars.indexOf(s.id)>=0;return '<button data-v="'+s.id+'" class="'+(on?'on':'')+'" onclick="this.classList.toggle(\'on\')">'+esc(rtParts(s.name).nm)+'</button>'}).join('')+'</div>'+
-  '<label>Role</label><div class="opts" id="m_role" data-v="'+esc(m.role)+'">'+['Team member','Finance','Admin'].map(function(r){return '<button data-v="'+r+'" class="'+(r===m.role?'on':'')+'" onclick="segPick(this)">'+r+'<div class="sub">'+desc[r]+'</div></button>'}).join('')+'</div>'+
+  '<label>Role</label><div class="opts" id="m_role" data-v="'+esc(m.role)+'">'+['Team member','Leader','Admin'].map(function(r){return '<button data-v="'+r+'" class="'+(r===m.role?'on':'')+'" onclick="segPick(this)">'+r+'<div class="sub">'+desc[r]+'</div></button>'}).join('')+'</div>'+
   '<label>Phone (for WhatsApp)</label><input id="m_phone" type="tel" value="'+esc(m.phone||'')+'">'+
   '<label>Access</label><div class="seg" id="m_act" data-v="'+(m.active?'1':'0')+'"><button data-v="1" class="'+(m.active?'on':'')+'" onclick="segPick(this)">Active</button><button data-v="0" class="'+(m.active?'':'on')+'" onclick="segPick(this)">Switched off</button></div>'+
   '<div id="m_msg"></div><button class="btn" onclick="memberSave('+i+',this)">Save</button>'+(i>=0&&m.name!==S.me?'<button class="btn red" onclick="memberDel('+i+',this)">Delete '+esc(m.name)+'</button>':'')+
