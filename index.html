@@ -313,35 +313,53 @@ function fundsCard(d,link){
   frow('','Received so far',d.income)+frow('','Spent so far',d.spent)+
   frow('','Money we hold now',d.hold)+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
   frow('=','Available now',d.available,'tot')+
-  frow('−','Planned, not yet spent',d.stillPlanned)+
-  frow('=','Free to use',d.free,'tot')+
-  '<div class="hint">Plus '+money(d.expected)+' still expected from participants. Rates used: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
+  frow('+','Participant fees still expected',d.expected)+
+  frow('−','Planned costs still to pay',d.stillPlanned)+
+  frow('=','Left after the plan',d.free,'tot')+
+  '<div class="hint">“Planned costs” include the budget below and the discounts already promised ('+money(d.discounts)+'). Rates: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
   (link?'<button class="btn light" onclick="go(budgetView)">📊 Budget & planning</button>':'')+'</div>'}
 function budgetView(){
   render(topbar('Budget & planning',true)+'<div id="bg_out">'+(S.home.budget?'':'<div class="loading">Loading…</div>')+'</div>');
   if(S.home.budget)budgetRender();
   call('budget',AUTH).then(function(d){S.home.budget=d;if($('bg_out'))budgetRender()}).catch(function(e){if($('bg_out'))$('bg_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
 }
+function semLabel(k){return k==='GEN'?'Whole project (both retreats)':rtParts(sem(k).name).nm}
 function budgetRender(){
-  var d=S.home.budget,n=S.bgN||Math.max(d.people,1);
-  var x=fundsCard(d,false);
+  var d=S.home.budget,x=fundsCard(d,false);
+  x+='<h2 style="margin-top:24px">The retreats</h2>'+d.sems.map(function(s,i){
+    return '<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;line-height:1.1;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
+    '<div class="stat"><div><b>'+s.planned+'</b><span>Planned</span></div><div><b>'+s.signed+'</b><span>Signed up</span></div><div><b class="pos">'+s.registered+'</b><span>Registered</span></div></div>'+
+    frow('','Participants × '+money(s.costP)+' at the venue','')+'<div class="hint" style="margin-top:-4px">'+s.n+' × '+money(s.costP)+' = '+money(s.n*s.costP)+(s.signed>s.planned?' (more signed up than planned)':'')+'</div>'+
+    frow('','Team members × '+money(s.costT)+' at the venue','')+'<div class="hint" style="margin-top:-4px">'+s.team+' × '+money(s.costT)+' = '+money(s.team*s.costT)+' · team members are counted from Team → “Part of which retreats?”</div>'+
+    frow('','Participant fees ('+s.n+' × '+money(s.price)+')',s.fees)+frow('','Received so far',s.received)+
+    frow('','Discounts promised'+(s.discounted?' ('+s.discounted+' people)':''),s.discounts)+
+    '<button class="btn light small" onclick="go(planEdit,'+i+')">Edit planned numbers</button></div>'}).join('');
   x+='<div class="card"><h3>How much discount can we give?</h3>'+
-    '<div class="sub">Free to use now + fees still expected = '+money(d.free+d.expected)+'</div>'+
-    '<label>Number of participants to help</label><input id="bg_n" type="number" inputmode="numeric" value="'+n+'" oninput="S.bgN=Number(this.value)||1;bgCalc()">'+
-    '<div id="bg_calc" class="msg info"></div>'+
-    '<div class="hint">Discounts already given: '+money(d.discounts)+' ('+d.people+' signed up, '+d.registered+' registered). Make sure the full costs (venue, meals, flights…) are entered as planned spending below – otherwise this number is too optimistic.</div></div>';
+    '<div class="sub">Left after the plan: <b class="'+(d.free<0?'neg':'')+'">'+money(d.free)+'</b></div>'+
+    '<label>Number of participants to help</label><input id="bg_n" type="number" inputmode="numeric" value="'+(S.bgN||d.totalPeople||1)+'" oninput="S.bgN=Number(this.value)||1;bgCalc()">'+
+    '<div id="bg_calc" class="msg info"></div><div class="hint">Every discount you give is counted as a planned cost, so this number goes down as discounts are handed out.</div></div>';
   x+='<h2 style="margin-top:24px">Planned spending</h2><button class="btn" onclick="go(budgetEdit,{})">＋ Add planned cost</button>';
   x+=d.cats.map(function(c,ci){var pct=c.planned?Math.min(100,Math.round(c.spent/c.planned*100)):(c.spent?100:0);
-    return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(c.name)+'</div><div class="sub">Planned '+money(c.planned)+' · spent '+money(c.spent)+'</div></div><div class="r"><b>'+(c.planned?money(c.planned-c.spent)+'</b><div class="sub">left':'')+'</div></div></div>'+
+    return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(c.name)+'</div><div class="sub">Planned '+money(c.planned)+' · spent '+money(c.spent)+'</div></div><div class="r">'+(c.planned?'<b>'+money(c.planned-c.spent)+'</b><div class="sub">left</div>':'')+'</div></div>'+
       (c.planned||c.spent?'<div class="bar"><i class="'+(c.spent>c.planned?'over':'')+'" style="width:'+pct+'%"></i></div>':'')+
-      (c.lines.length?'<div class="list">'+c.lines.map(function(l){return '<div class="it tap" onclick="go(budgetEdit,{id:\''+l.id+'\'})"><div class="l"><div>'+esc(l.description||'(no description)')+'</div><div class="sub">'+(l.seminar&&l.seminar!=='GEN'?esc(rtParts(sem(l.seminar).name).nm):'Whole project')+(l.notes?' · '+esc(l.notes):'')+'</div></div><div class="r">'+money(l.amount,l.cur)+(l.cur!=='KES'?'<div class="sub">≈ '+money(l.kes)+'</div>':'')+'</div></div>'}).join('')+'</div>':'')+
-      '<div class="hint"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
+      c.rows.map(function(r){return '<div style="margin-top:10px"><div class="sub" style="font-weight:600">'+esc(semLabel(r.seminar))+' · '+money(r.planned)+(r.spent?' · spent '+money(r.spent):'')+'</div><div class="list">'+
+        (r.auto?'<div class="it"><div class="l"><div>Participants & team at the venue</div><div class="sub">calculated from the planned numbers above</div></div><div class="r">'+money(r.auto)+'</div></div>':'')+
+        r.lines.map(function(l){return '<div class="it tap" onclick="go(budgetEdit,{id:\''+l.id+'\'})"><div class="l"><div>'+esc(l.description||'(no description)')+'</div>'+(l.notes?'<div class="sub">'+esc(l.notes)+'</div>':'')+'</div><div class="r">'+money(l.amount,l.cur)+(l.cur!=='KES'?'<div class="sub">≈ '+money(l.kes)+'</div>':'')+'</div></div>'}).join('')+'</div></div>'}).join('')+
+      '<div class="hint" style="margin-top:8px"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
   $('bg_out').innerHTML=x;bgCalc();
 }
-function bgCalc(){var d=S.home.budget,n=Math.max(1,S.bgN||Math.max(d.people,1)),tot=d.free+d.expected,each=Math.floor(tot/n/500)*500;
-  $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> discount (on top of the discounts already given).':'<b>No room for more discounts right now</b> – planned spending is higher than the money available ('+money(tot)+').'}
+function planEdit(i){var s=S.home.budget.sems[i];
+  render(topbar('Planned numbers',true)+'<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
+  '<label>How many participants do we expect?</label><input id="pl_n" type="number" inputmode="numeric" value="'+s.planned+'">'+
+  '<label>Venue cost per participant (KES, full board)</label><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
+  '<label>Venue cost per team member (KES)</label><input id="pl_ct" type="number" inputmode="numeric" value="'+s.costT+'">'+
+  '<div class="hint">Team members counted: '+s.team+'. To change who is part of this retreat, go to Team → Edit → “Part of which retreats?”.</div>'+
+  '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>')}
+function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,costP:$('pl_cp').value,costT:$('pl_ct').value}).then(function(d){S.home.budget=d;goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
+function bgCalc(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
+  $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> extra discount.':'<b>No room for more discounts yet</b> – the plan needs '+money(-tot)+' more than we have and expect. Raise more funds or reduce planned costs.'}
 function budgetEdit(o){var d=S.home.budget,l={category:o.ci!=null?d.cats[o.ci].name:'',description:'',amount:'',cur:'KES',seminar:'GEN',notes:''};
-  if(o.id)d.cats.forEach(function(c){c.lines.forEach(function(x){if(x.id===o.id)l=x})});
+  if(o.id)d.cats.forEach(function(c){c.rows.forEach(function(r){r.lines.forEach(function(x){if(x.id===o.id)l=x})})});
   render(topbar(o.id?'Edit planned cost':'Planned cost',true)+'<div class="card">'+
   '<label style="margin-top:0">Category</label><select id="bl_cat"><option value="">Choose…</option>'+d.cats.map(function(c){return '<option'+(c.name===l.category?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select>'+
   '<label>What for?</label><input id="bl_desc" value="'+esc(l.description)+'" placeholder="e.g. Flights Karin, Wolfgang & Ginny">'+
