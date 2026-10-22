@@ -230,7 +230,7 @@ function doSignup(btn){
   if(d.sms){var x=smsGet('s');if(!x)return;d.code=x.code;d.amount=x.amount;d.date=x.date}
   busy(btn,true);
   call('signup',d).then(function(r){
-    if(r.existing){busy(btn,false);showMsg('s_msg','You are already registered with this phone number. Please open your personal page with the link you saved. Lost it? Contact Lisa or Kristen and they will send it to you again.','err');return}
+    if(r.existing){busy(btn,false);if(r.added&&r.added.length){render('<div class="hero sm" style="background-image:url('+HERO+')"><div class="ttl">Soul Care</div></div><div class="card thanks"><div class="big2">Thank you!</div><p>You were already registered with this phone number, so we added <b>'+esc(r.added.map(function(n){return rtParts(n).nm}).join(' & '))+'</b> to your existing registration.</p>'+(r.payMsg?'<div class="msg info">'+esc(r.payMsg)+'</div>':'')+'<p>Please open your personal page with the link you saved. Lost it? Contact Lisa or Kristen and they will send it to you again.</p>'+(S.contact?'<div class="hint">'+linkify(S.contact)+'</div>':'')+'</div>');return}showMsg('s_msg','You are already registered with this phone number. Please open your personal page with the link you saved. Lost it? Contact Lisa or Kristen and they will send it to you again.','err');return}
     if(!window.TEST)store('sc_p',r.token);AUTH={p:r.token};
     return call('init',AUTH).then(function(x){S.pv=x.view;S.info=x.info;S.payTo=x.payTo;S.contact=x.contact;S.arrival=x.arrival;S.thanks=x.thanks;S.pay=x.pay||S.pay;
       S.justReg={existing:r.existing,pay:r.payMsg};partHome()})
@@ -293,7 +293,7 @@ function topStatusAll(its){
   return '<div class="card">'+its.map(function(it){var q=it.person,reg=/^(Registered|Paid|Free)$/.test(q.Status);
     return '<div class="frow"><span>'+esc(rtParts(it.seminar.name).nm)+'</span><span>'+(reg?'<span class="chip c-Paid">✓ Registered</span>':(Number(q['Paid (reported)'])>0?'<span class="chip c-Reported">Payment being checked</span>':'<span class="chip c-Pending">Signed up – fee not yet paid</span>'))+'</span></div>'}).join('')+'</div>'}
 function partBursary(){
-  render(topbarP('Financial support')+'<div class="card"><p>Financial support helps participants who cannot pay the full cost. They come from donations, so the team looks at each request personally and will let you know on your page.</p><p>The registration fee is always paid by you.</p>'+
+  render(topbarP('Financial support')+'<div class="card"><p>Financial support helps participants who cannot pay the full cost. It comes from donations, so the team looks at each request personally and will let you know on your page.</p><p>The registration fee is always paid by you.</p>'+
   '<label>Anything you would like us to know? (optional)</label><textarea id="b_note" style="min-height:100px"></textarea><div id="b_msg"></div><button class="btn" onclick="partBursarySend(this)">Send my request</button></div>')}
 function partBursarySend(btn){busy(btn,true);call('participantBursary',AUTH,{note:$('b_note').value}).then(function(r){S.pv=r.view;partHome('Thank you – your request has been sent.')}).catch(function(e){busy(btn,false);showMsg('b_msg',e,'err')})}
 function topStatus(p,sm){var st=p.Status,rep=Number(p['Paid (reported)'])||0;
