@@ -340,13 +340,13 @@ function budgetRender_(){
     '<div class="sub">Left after the plan: <b class="'+(d.free<0?'neg':'')+'">'+money(d.free)+'</b></div>'+
     '<label>Number of participants to help</label><input id="bg_n" type="number" inputmode="numeric" value="'+(S.bgN||d.totalPeople||1)+'" oninput="S.bgN=Number(this.value)||1;bgCalc()">'+
     '<div id="bg_calc" class="msg info"></div><div class="hint">Every discount you give is counted as a planned cost, so this number goes down as discounts are handed out.</div></div>';
-  x+='<h2 style="margin-top:24px">Planned spending</h2><button class="btn" onclick="go(budgetEdit,{})">＋ Add planned cost</button>';
+  x+='<h2 style="margin-top:24px">Planned spending</h2><div class="hint">Tap any item (✏️) to change or delete it.</div><button class="btn" onclick="go(budgetEdit,{})">＋ Add planned cost</button>';
   x+=d.cats.map(function(c,ci){var pct=c.planned?Math.min(100,Math.round(c.spent/c.planned*100)):(c.spent?100:0);
     return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(c.name)+'</div><div class="sub">Planned '+money(c.planned)+' · spent '+money(c.spent)+'</div></div><div class="r">'+(c.planned?'<b>'+money(c.planned-c.spent)+'</b><div class="sub">left</div>':'')+'</div></div>'+
       (c.planned||c.spent?'<div class="bar"><i class="'+(c.spent>c.planned?'over':'')+'" style="width:'+pct+'%"></i></div>':'')+
       c.rows.map(function(r){return '<div style="margin-top:10px"><div class="sub" style="font-weight:600">'+esc(semLabel(r.seminar))+' · '+money(r.planned)+(r.spent?' · spent '+money(r.spent):'')+'</div><div class="list">'+
-        (r.auto?'<div class="it"><div class="l"><div>Participants & team at the venue</div><div class="sub">calculated from the planned numbers above</div></div><div class="r">'+money(r.auto)+'</div></div>':'')+
-        r.lines.map(function(l){return '<div class="it tap" onclick="go(budgetEdit,{id:\''+l.id+'\'})"><div class="l"><div>'+esc(l.description||'(no description)')+'</div>'+(l.notes?'<div class="sub">'+esc(l.notes)+'</div>':'')+'</div><div class="r">'+money(l.amount,l.cur)+(l.cur!=='KES'?'<div class="sub">≈ '+money(l.kes)+'</div>':'')+'</div></div>'}).join('')+'</div></div>'}).join('')+
+        (r.auto?'<div class="it tap" onclick="planFromHome(\''+r.seminar+'\')"><div class="l"><div>Participants & team at the venue ✏️</div><div class="sub">calculated from the planned numbers</div></div><div class="r">'+money(r.auto)+'</div></div>':'')+
+        r.lines.map(function(l){return '<div class="it tap" onclick="go(budgetEdit,{id:\''+l.id+'\'})"><div class="l"><div>'+esc(l.description||'(no description)')+' ✏️</div>'+(l.notes?'<div class="sub">'+esc(l.notes)+'</div>':'')+'</div><div class="r">'+money(l.amount,l.cur)+(l.cur!=='KES'?'<div class="sub">≈ '+money(l.kes)+'</div>':'')+'</div></div>'}).join('')+'</div></div>'}).join('')+
       '<div class="hint" style="margin-top:8px"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
   $('bg_out').innerHTML=x;bgCalc();
 }
@@ -354,11 +354,12 @@ function planFromHome(id){var b=S.home.budget;if(!b)return;var i=b.sems.map(func
 function planEdit(i){var s=S.home.budget.sems[i];
   render(topbar('Planned numbers',true)+'<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
   '<label>How many participants do we expect?</label><input id="pl_n" type="number" inputmode="numeric" value="'+s.planned+'">'+
-  '<label>What the venue charges us per participant (KES, full board)</label><div class="hint">Not the same as the price participants pay ('+money(s.price)+').</div><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
-  '<label>What the venue charges us per team member (KES)</label><input id="pl_ct" type="number" inputmode="numeric" value="'+s.costT+'">'+
-  '<div class="hint">Team members counted: '+s.team+'. To change who is part of this retreat, go to Team → Edit → “Part of which retreats?”.</div>'+
+  '<label>How many team members will stay at the venue?</label><input id="pl_t" type="number" inputmode="numeric" value="'+(s.teamPlanned==null?'':s.teamPlanned)+'" placeholder="'+s.teamAssigned+' (from the team list)">'+
+  '<div class="hint">Leave empty to count the team members marked for this retreat in Team ('+s.teamAssigned+').</div>'+
+  '<label>Venue price per person (KES, full board)</label><input id="pl_cp" type="number" inputmode="numeric" value="'+s.costP+'">'+
+  '<div class="hint">Same for participants and team members. (Participants pay '+money(s.price)+'.)</div>'+
   '<div id="pl_msg"></div><button class="btn" onclick="planSave(\''+s.id+'\',this)">Save</button></div>')}
-function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,costP:$('pl_cp').value,costT:$('pl_ct').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
+function planSave(id,btn){busy(btn,true);call('seminarPlanSave',AUTH,{id:id,planned:$('pl_n').value,team:$('pl_t').value,costP:$('pl_cp').value}).then(function(d){S.home.budget=d;return refreshHome()}).then(function(){goBack()}).catch(function(e){busy(btn,false);showMsg('pl_msg',e,'err')})}
 function bgCalc(){window.NOKES=true;try{bgCalc_()}finally{window.NOKES=false}}
 function bgCalc_(){var d=S.home.budget,n=Math.max(1,S.bgN||d.totalPeople||1),tot=d.free,each=Math.floor(tot/n/500)*500;
   $('bg_calc').innerHTML=tot>0?'You could give each of <b>'+n+'</b> participants about <b>'+money(each)+'</b> extra discount.':'<b>No room for more discounts yet</b> – the plan needs '+money(-tot)+' more than we have and expect. Raise more funds or reduce planned costs.'}
@@ -774,10 +775,12 @@ function memberEdit(i){
   '<label>Role</label><div class="opts" id="m_role" data-v="'+esc(m.role)+'">'+['Team member','Finance','Admin'].map(function(r){return '<button data-v="'+r+'" class="'+(r===m.role?'on':'')+'" onclick="segPick(this)">'+r+'<div class="sub">'+desc[r]+'</div></button>'}).join('')+'</div>'+
   '<label>Phone (for WhatsApp)</label><input id="m_phone" type="tel" value="'+esc(m.phone||'')+'">'+
   '<label>Access</label><div class="seg" id="m_act" data-v="'+(m.active?'1':'0')+'"><button data-v="1" class="'+(m.active?'on':'')+'" onclick="segPick(this)">Active</button><button data-v="0" class="'+(m.active?'':'on')+'" onclick="segPick(this)">Switched off</button></div>'+
-  '<div id="m_msg"></div><button class="btn" onclick="memberSave('+i+',this)">Save</button>'+
+  '<div id="m_msg"></div><button class="btn" onclick="memberSave('+i+',this)">Save</button>'+(i>=0&&m.name!==S.me?'<button class="btn red" onclick="memberDel('+i+',this)">Delete '+esc(m.name)+'</button>':'')+
   (m.link?'<div class="card" style="background:var(--brand2)"><h3>Personal link</h3><div class="sub" style="word-break:break-all">'+esc(m.link)+'</div>'+(wa?'<a class="btn" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(wa)+'">Send link on WhatsApp</a>':'<div class="hint">Add a phone number to send it on WhatsApp.</div>')+'</div>':'')+
   '<button class="btn light" onclick="teamView()">Back</button></div>');
 }
+function memberDel(i,btn){var n=S.members[i].name;if(!confirm('Delete '+n+' from the team? Their personal link stops working and their prayer group becomes unassigned.'))return;busy(btn,true);
+  call('teamMemberDelete',AUTH,n).then(function(l){S.members=l;return refreshHome()}).then(function(){S.people=null;loadPeople();S.stack=[[teamHome],[teamView]];teamView()}).catch(function(e){busy(btn,false);showMsg('m_msg',e,'err')})}
 function memberSave(i,btn){var orig=i>=0?S.members[i].name:'';
   var all=$('m_sems').querySelectorAll('button'),on=[].filter.call(all,function(b){return b.classList.contains('on')}).map(function(b){return b.dataset.v});
   if(!on.length){showMsg('m_msg','Please choose at least one retreat.','err');return}
