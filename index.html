@@ -62,7 +62,7 @@ textarea{min-height:96px}
 .tap{cursor:pointer}
 .chip{display:inline-block;padding:2px 8px;border-radius:9px;font-size:12px;font-weight:600}
 .c-Paid,.c-Confirmed{background:var(--okbg);color:var(--ok)}.c-Partly{background:var(--warnbg);color:var(--warn)}
-.c-Reported,.c-Being{background:var(--infobg);color:var(--info)}.c-Not,.c-Check{background:var(--badbg);color:var(--bad)}.c-Free{background:#eee;color:#555}.c-Pending{background:var(--badbg);color:var(--bad)}.c-Registered{background:var(--okbg);color:var(--ok)}
+.c-Reported,.c-Being{background:var(--infobg);color:var(--info)}.c-Not,.c-Check{background:var(--badbg);color:var(--bad)}.c-Free{background:#eee;color:#555}.c-Pending{background:var(--warnbg);color:var(--warn)}.c-Registered{background:var(--okbg);color:var(--ok)}
 .neg{color:var(--bad)}.pos{color:var(--ok)}
 .msg{padding:12px 14px;border-radius:12px;margin:10px 0;font-size:16px}
 .msg.ok{background:var(--okbg);color:var(--ok)}.msg.err{background:var(--badbg);color:var(--bad)}.msg.info{background:var(--infobg);color:var(--info)}
@@ -96,6 +96,7 @@ function render(html){$('app').innerHTML=html;window.scrollTo(0,0)}
 function busy(btn,on){if(!btn)return;btn.disabled=on;if(on){btn.dataset.t=btn.textContent;btn.textContent='Please wait…'}else if(btn.dataset.t)btn.textContent=btn.dataset.t}
 function showMsg(id,text,kind){var el=$(id);if(el){el.innerHTML='<div class="msg '+(kind||'ok')+'">'+esc(text)+'</div>';el.scrollIntoView({block:'center'})}}
 function chip(st){var c=String(st||'').split(' ')[0];return '<span class="chip c-'+esc(c)+'">'+esc(st)+'</span>'}
+function pchip(st){var L={Pending:'Signed up',Reported:'Payment sent',Registered:'Registered',Paid:'Paid in full',Free:'Free'};return '<span class="chip c-'+esc(st)+'">'+esc(L[st]||st)+'</span>'}
 function acc(id){return (S.lists.accounts.filter(function(a){return a.id===id})[0])||{name:id,cur:''}}
 function sem(id){return (S.lists.seminars.filter(function(s){return s.id===id})[0])||{name:id||''}}
 function person(id){return (S.lists.people.filter(function(p){return p.id===id})[0])||null}
@@ -116,18 +117,33 @@ function phone254(p){var d=String(p||'').replace(/\D/g,'');if(d.indexOf('0')===0
   else if(PARAMS.p){AUTH={p:PARAMS.p}}
   else if(store('sc_t')){AUTH={t:store('sc_t')}}
   else if(store('sc_p')){AUTH={p:store('sc_p')}}
+  var CK=AUTH.t?'sc_c_'+AUTH.t:'',cached=null;
+  try{cached=CK?JSON.parse(store(CK)||'null'):null}catch(e){}
+  if(cached&&cached.mode==='team'){applyInit(cached);try{S.people=JSON.parse(store('sc_pp_'+AUTH.t)||'null')}catch(e){}}
   call('init',AUTH).then(function(r){
-    S.mode=r.mode;
-    S.pay=r.pay||{};
-    if(r.mode==='team'){S.me=r.me;S.admin=r.admin;S.finance=r.finance;S.lists=r.lists;S.home=r.home;S.stack=[[teamHome]];teamHome()}
-    else if(r.mode==='partner'){S.me=r.me;S.group=r.group;partnerHome()}
-    else if(r.mode==='participant'){S.pv=r.view;S.info=r.info;S.payTo=r.payTo;S.contact=r.contact;S.arrival=r.arrival;S.thanks=r.thanks;partHome()}
-    else{S.seminars=r.seminars;S.info=r.info;S.contact=r.contact;signupView()}
+    if(CK&&r.mode==='team')store(CK,JSON.stringify(r));
+    applyInit(r,!!cached);
   }).catch(function(e){
-    if(!window.TEST){if(AUTH.t)store('sc_t',null);if(AUTH.p)store('sc_p',null);}
+    if(cached&&/internet/i.test(String(e)))return;
+    if(!window.TEST){if(AUTH.t)store('sc_t',null);if(AUTH.p)store('sc_p',null);if(CK)store(CK,null)}
     render('<h1>Soul Care</h1><div class="msg err">'+esc(e)+'</div><button class="btn light" onclick="location.reload()">Try again</button>')
   });
 })();
+function applyInit(r,refresh){
+  S.mode=r.mode;
+  S.pay=r.pay||{};
+  if(r.mode==='team'){S.me=r.me;S.admin=r.admin;S.finance=r.finance;S.lists=r.lists;S.home=r.home;
+    if(!refresh){S.stack=[[teamHome]];teamHome()}else if(S.stack.length===1&&S.stack[0][0]===teamHome)teamHome();
+    if(refresh||!S.people)loadPeople();}
+  else if(r.mode==='participant'){S.pv=r.view;S.info=r.info;S.payTo=r.payTo;S.contact=r.contact;S.arrival=r.arrival;S.thanks=r.thanks;partHome()}
+  else{S.seminars=r.seminars;S.info=r.info;S.contact=r.contact;signupView()}
+}
+function loadPeople(){
+  if(S.peopleP)return S.peopleP;
+  S.peopleP=call('teamPeople',AUTH).then(function(l){S.people=l;S.peopleP=null;try{store('sc_pp_'+AUTH.t,JSON.stringify(l))}catch(e){}if($('p_out'))peopleRender();return l})
+    .catch(function(e){S.peopleP=null;if($('p_out')&&!S.people)$('p_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
+  return S.peopleP;
+}
 
 /* =========================================================
    SIGN-UP
@@ -228,7 +244,7 @@ function teamHome(){
   var h=S.home,fin=S.finance,nCheck=(h.toCheck||[]).length;
   var x='<div class="hero sm" style="background-image:url('+HERO+')"><div class="ttl">Soul Care</div></div><div class="sub">Hi '+esc(S.me)+' 👋</div>';
   x+=h.seminars.map(function(s){var p=rtParts(s.name);return '<div class="card tap" onclick="go(peopleView,{seminar:\''+s.id+'\'})"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
-    '<div class="stat" style="margin:6px 0 0"><div><b>'+(s.count||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div><div><b class="'+(s.pending?'neg':'')+'">'+(s.pending||0)+'</b><span>Pending</span></div></div>'+
+    '<div class="stat" style="margin:6px 0 0"><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
     (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+'</div>'}).join('');
   x+='<div class="grid"><button class="big main" onclick="go(peopleView,{})"><span class="i">👥</span>All participants</button><button class="big" onclick="go(peopleView,{mine:1})"><span class="i">🙏</span>My prayer group</button>'+
     (S.admin?'<button class="big" onclick="go(teamView)"><span class="i">🤝</span>Team</button>':'')+
@@ -236,8 +252,8 @@ function teamHome(){
   if(fin){
     var wallets=h.balances.filter(function(b){return b.group!=='Personal'}),pers=h.balances.filter(function(b){return b.group==='Personal'&&Math.abs(b.balance)>0.5});
     x+='<h2 style="margin-top:28px">Money</h2>'+
-    '<button class="btn" style="margin:8px 0 4px;padding:18px;font-size:19px" onclick="go(txForm,{})">＋ Track a transaction</button>'+
-    '<div class="grid"><button class="big" onclick="go(smsView)"><span class="i">📋</span>Paste M-Pesa SMS</button><button class="big" onclick="go(txList,{})"><span class="i">📒</span>All entries</button><button class="big" onclick="go(balCheck)"><span class="i">⚖️</span>Check phone balance</button></div>'+
+    '<button class="btn" style="margin:8px 0 4px;padding:16px;font-size:19px" onclick="go(txForm,{})">＋ Track a transaction<div style="font-size:13px;font-weight:400;opacity:.85">or paste an M-Pesa SMS</div></button>'+
+    '<div class="grid"><button class="big" onclick="go(txList,{})"><span class="i">📒</span>All entries</button><button class="big" onclick="go(balCheck)"><span class="i">⚖️</span>Check phone balance</button></div>'+
     '<div class="card"><h3>Balances</h3><div class="list">'+wallets.map(balRow).join('')+'</div></div>'+
     (pers.length?'<div class="card"><h3>Private money (who is owed)</h3><div class="list">'+pers.map(function(b){var owed=b.balance<0;
       return '<div class="it"><div class="l"><div class="t">'+esc(b.owner||b.name)+'</div><div class="sub">'+esc(b.name)+'</div></div><div class="r"><div class="'+(owed?'neg':'')+'">'+(owed?'Owed ':'Holds ')+money(Math.abs(b.balance),b.cur)+'</div>'+
@@ -271,39 +287,46 @@ function personByLabel(v){v=String(v||'').trim();if(!v)return '';var L=personLis
 function personLabel(id){var i=S.lists.people.map(function(p){return p.id}).indexOf(id);return i>=0?personList()[i]:''}
 function txForm(o){
   o=o||{};var t=o.tx||{};
-  S.form={id:t.ID||''};
+  S.form={id:t.ID||'',notes:t.Notes||'',party0:t.Party||o.party||'',smsParty:''};
   var from=t.From||o.from||'',to=t.To||o.to||'';
-  var h=topbar(t.ID?'Edit entry':'Track a transaction',true)+'<div class="card">'+
-  '<label>Money came from</label>'+accSelect('f_from',from,'from')+
+  var h=topbar(t.ID?'Edit entry':'Track a transaction',true)+
+  (t.ID?'':'<div class="card"><label style="margin-top:0">📋 Have an M-Pesa SMS? Paste it here</label><textarea id="f_sms" style="min-height:64px" placeholder="Paste the whole message – the form fills itself in" oninput="txSms()"></textarea><div id="f_smsinfo"></div></div>')+
+  '<div class="card">'+
+  '<label style="margin-top:0">From</label>'+accSelect('f_from',from,'from')+
   '<div id="f_pwrap" class="hide"><label>Which participant?</label><input id="f_pname" list="f_plist" placeholder="Start typing a name…" value="'+esc(personLabel(t['Participant ID']||o.participantId||''))+'"><datalist id="f_plist">'+personList().map(function(x){return '<option value="'+esc(x)+'">'}).join('')+'</datalist>'+
     '<div class="hint">Leave empty if you don\'t know yet. <a href="#" onclick="addSplit();return false">This payment covers several people</a></div><div id="f_splits"></div></div>'+
-  '<div id="f_partyw" class="hide"><label id="f_partyl">Name</label><input id="f_party" value="'+esc(t.Party||o.party||'')+'"></div>'+
-  '<label>Money went to</label>'+accSelect('f_to',to,'to')+
+  '<div id="f_partyw" class="hide"><label id="f_partyl">Name</label><input id="f_party" value="'+esc(S.form.party0)+'"></div>'+
+  '<label>To</label>'+accSelect('f_to',to,'to')+
   '<div id="f_kind" class="hint"></div>'+
   '<div id="f_catw" class="hide"><label>What was it for?</label><select id="f_cat"><option value="">Choose…</option>'+catsFor('Expense').map(function(c){return '<option'+(c.name===t.Category?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select></div>'+
   '<label id="f_amtl">Amount</label><input id="f_amt" type="number" inputmode="decimal" value="'+esc(t.Amount||o.amount||'')+'" oninput="rateUpdate()">'+
   '<div id="f_recw" class="hide"><label id="f_recl">Amount that arrived</label><input id="f_rec" type="number" inputmode="decimal" value="'+esc(t['Amount received']||'')+'" oninput="S.recTouched=true;rateUpdate()"><div id="f_rate" class="hint"></div></div>'+
-  '<label>Fee charged (M-Pesa / bank), if any</label><input id="f_fee" type="number" inputmode="decimal" value="'+esc(t.fee||o.fee||'')+'" placeholder="0">'+
-  '<label>Which retreat?</label><select id="f_sem">'+opts(S.lists.seminars,t.Seminar||o.seminar||'GEN','id','name')+'</select>'+
-  '<label>Short description</label><input id="f_desc" value="'+esc(t.Description||o.description||'')+'" placeholder="e.g. coffee for team, 2nd deposit">'+
-  '<label>Date</label><input id="f_date" type="date" value="'+esc(t.Date||o.date||today())+'">'+
-  '<label>M-Pesa code / reference</label><input id="f_code" style="text-transform:uppercase" value="'+esc(t['M-Pesa code / Ref']||o.code||'')+'">'+
-  '<label>Receipt photo (optional)</label><input id="f_img" type="file" accept="image/*">'+(t.Receipt?'<div class="hint"><a href="'+esc(t.Receipt)+'" target="_blank">View saved receipt</a></div>':'')+
-  '<label>Notes (optional)</label><input id="f_notes" value="'+esc(t.Notes||'')+'">'+
+  '<div id="f_semw"><label>Which retreat?</label><select id="f_sem">'+opts(S.lists.seminars,t.Seminar||o.seminar||'GEN','id','name')+'</select></div>'+
+  '<label>Note (optional)</label><input id="f_desc" value="'+esc(t.Description||o.description||'')+'" placeholder="e.g. coffee for team, 2nd instalment">'+
+  '<div id="f_more_s" class="hint" style="margin-top:14px"><a href="#" onclick="txMore();return false">＋ Date, M-Pesa code, fee, receipt photo</a></div>'+
+  '<div id="f_more" class="hide">'+
+    '<label>Date</label><input id="f_date" type="date" value="'+esc(t.Date||o.date||today())+'">'+
+    '<label>M-Pesa code / reference</label><input id="f_code" style="text-transform:uppercase" value="'+esc(t['M-Pesa code / Ref']||o.code||'')+'">'+
+    '<label>Fee charged (M-Pesa / bank)</label><input id="f_fee" type="number" inputmode="decimal" value="'+esc(t.fee||o.fee||'')+'" placeholder="0">'+
+    '<label>Receipt photo</label><input id="f_img" type="file" accept="image/*">'+(t.Receipt?'<div class="hint"><a href="'+esc(t.Receipt)+'" target="_blank">View saved receipt</a></div>':'')+
+  '</div>'+
   '<div id="f_msg"></div><button class="btn" onclick="saveTx(this)">Save</button>'+
   (t.ID?'<button class="btn red" onclick="delTx(\''+t.ID+'\',this)">Delete this entry</button>':'')+'</div>';
   S.recTouched=!!t['Amount received'];
   render(h);txUpdate();
+  if(t.ID||o.code||o.fee)txMore();
 }
+function txMore(){$('f_more').className='';$('f_more_s').className='hide'}
 function txUpdate(){
   var f=$('f_from').value,t=$('f_to').value,fa=acc(f),ta=acc(t),fo=fa.group==='Outside',to=ta.group==='Outside';
   $('f_pwrap').className=f==='OUT-PART'?'':'hide';
-  $('f_partyw').className=(f==='OUT-PART'||f==='OUT-DONOR'||f==='OUT-VENDOR'||t==='OUT-VENDOR')?'':'hide';
-  $('f_partyl').textContent=f==='OUT-PART'?'Name on the M-Pesa payment (if different)':f==='OUT-DONOR'?'Donor name':f==='OUT-VENDOR'?'From whom?':'Paid to (shop / person)';
+  $('f_semw').className=f==='OUT-PART'?'hide':'';
+  $('f_partyw').className=(f==='OUT-DONOR'||f==='OUT-VENDOR'||t==='OUT-VENDOR')?'':'hide';
+  $('f_partyl').textContent=f==='OUT-DONOR'?'Donor name':f==='OUT-VENDOR'?'From whom?':'Paid to (shop / person)';
   $('f_catw').className=(t==='OUT-VENDOR'&&f&&!fo)?'':'hide';
   var k='';
   if(f&&t){if(fo&&to)k='<span class="neg">Money cannot go from outside to outside. Choose one of our accounts.</span>';
-    else if(!fo&&!to)k='⇄ Internal transfer between our own accounts';
+    else if(!fo&&!to)k='⇄ Moving money between our own accounts';
     else if(fo)k='＋ Money coming in';
     else k='－ Money going out';}
   $('f_kind').innerHTML=k;
@@ -314,6 +337,29 @@ function txUpdate(){
   $('f_recl').textContent='Amount that arrived ('+ct+')';
   rateUpdate();
 }
+function txSms(){
+  var txt=$('f_sms').value,el=$('f_smsinfo'),L=parseSms(txt);
+  if(!txt.trim()){el.innerHTML='';return}
+  if(!L.length){el.innerHTML='<div class="hint neg">No M-Pesa code found yet – please paste the whole message.</div>';return}
+  if(L.length>1){el.innerHTML='<div class="msg info">'+L.length+' messages found. <a href="#" onclick="txMany();return false">Handle all of them together</a></div>';return}
+  var x=L[0],msg='',pid='';
+  if(x.dir==='in'){
+    $('f_from').value='OUT-PART';$('f_to').value='KE-PHONE';S.form.smsParty=x.party||'';
+    var ck=(S.home.toCheck||[]).filter(function(c){return String(c['M-Pesa code / Ref']).toUpperCase()===x.code&&c['Participant ID']})[0];
+    if(ck)pid=ck['Participant ID'];
+    var dg=String(x.phone||'').replace(/\D/g,'');
+    if(!pid&&dg.length>=9&&String(x.phone).indexOf('*')<0){var hp=S.lists.people.filter(function(p){return String(p.phone).replace(/\D/g,'').slice(-9)===dg.slice(-9)});if(hp.length===1)pid=hp[0].id}
+    if(!pid&&x.party){var n=x.party.toLowerCase().replace(/\s+/g,' ');var hn=S.lists.people.filter(function(p){return String(p.name).toLowerCase().replace(/\s+/g,' ').trim()===n});if(hn.length===1)pid=hn[0].id}
+    if(pid)$('f_pname').value=personLabel(pid);
+    msg='Received '+money(x.amount)+' from '+(x.party||'?')+(pid?' – this looks like '+person(pid).name+'.':' – pick the participant below (or change “From” if it was a donor).');
+  }else if(x.dir==='withdraw'){$('f_from').value='KE-PHONE';$('f_to').value='KE-CASH';$('f_desc').value='Cash withdrawal';msg='Cash withdrawal of '+money(x.amount)+'.'}
+  else if(x.dir==='out'){$('f_from').value='KE-PHONE';$('f_to').value='OUT-VENDOR';$('f_party').value=x.party||'';msg='Paid '+money(x.amount)+' to '+(x.party||'?')+' – please choose what it was for.'}
+  else msg='Could not tell which way the money went – please choose From and To.';
+  $('f_amt').value=x.amount||'';if(x.date)$('f_date').value=x.date;$('f_code').value=x.code;$('f_fee').value=x.fee||'';
+  txUpdate();txMore();
+  el.innerHTML='<div class="msg ok">✓ '+esc(msg)+'</div>';
+}
+function txMany(){var t=$('f_sms').value;S.stack[S.stack.length-1]=[smsView];smsView();$('m_txt').value=t;smsParse()}
 var RATES={};
 function getRate(a,b){var k=a+b;if(RATES[k])return Promise.resolve(RATES[k]);return fetch('https://open.er-api.com/v6/latest/'+a).then(function(r){return r.json()}).then(function(j){var v=j&&j.rates&&j.rates[b];if(v)RATES[k]=v;return v}).catch(function(){return null})}
 function rateUpdate(){
@@ -340,8 +386,8 @@ function saveTx(btn){
       if(bad){showMsg('f_msg','One of the names was not found. Please pick names from the list.','err');return}}
     else{pid=personByLabel($('f_pname').value);if($('f_pname').value.trim()&&!pid){showMsg('f_msg','Participant not found. Please pick a name from the list, or leave it empty if unknown.','err');return}}}
   var d={id:S.form.id,from:f,to:t,amount:$('f_amt').value,amountReceived:$('f_recw').classList.contains('hide')?'':$('f_rec').value,fee:$('f_fee').value,
-    category:$('f_catw').classList.contains('hide')?'':$('f_cat').value,seminar:$('f_sem').value,party:$('f_partyw').classList.contains('hide')?'':$('f_party').value,participantId:pid,
-    description:$('f_desc').value,date:$('f_date').value,code:$('f_code').value,notes:$('f_notes').value,splits:splits};
+    category:$('f_catw').classList.contains('hide')?'':$('f_cat').value,seminar:$('f_semw').classList.contains('hide')?'GEN':$('f_sem').value,party:$('f_partyw').classList.contains('hide')?(f==='OUT-PART'?(S.form.smsParty||S.form.party0):''):$('f_party').value,participantId:pid,
+    description:$('f_desc').value,date:$('f_date').value,code:$('f_code').value,notes:S.form.notes,splits:splits};
   busy(btn,true);
   readImg($('f_img').files[0]).then(function(img){d.receipt=img;return call('teamSave',AUTH,d)})
   .then(function(r){return refreshHome().then(function(){
@@ -467,30 +513,47 @@ function doBal(btn){busy(btn,true);call('teamBalanceCheck',AUTH,$('b_acc').value
 function peopleView(f){
   f=f||{};S.pf=f;
   render(topbar(f.mine?'My prayer group':'Participants',true)+'<select id="p_sem" onchange="peopleRender()">'+opts(S.lists.seminars.filter(function(s){return s.id!=='GEN'}),f.seminar||'','id','name','All retreats')+'</select>'+
-  '<select id="p_st" style="margin-top:8px" onchange="peopleRender()"><option value="">Everyone</option><option value="mine">My prayer group</option><option value="nopartner">No prayer partner yet</option><option value="Pending">Pending (no fee yet)</option><option value="Registered">Registered</option>'+(S.finance?'<option value="owe">Still owe money</option><option value="Paid">Fully paid</option>':'')+'</select>'+
+  '<select id="p_st" style="margin-top:8px" onchange="peopleRender()"><option value="">Everyone</option><option value="mine">My prayer group</option><option value="nopartner">No prayer partner yet</option><option value="Pending">Signed up, not paid</option><option value="Registered">Registered</option>'+(S.finance?'<option value="owe">Still owe money</option><option value="Paid">Paid in full</option>':'')+'</select>'+
   '<input id="p_q" placeholder="Search name or phone…" style="margin-top:8px" oninput="peopleRender()">'+
-  '<button class="btn light" onclick="go(personEdit,{})">+ Add participant</button>'+
-  '<div id="p_out"><div class="loading">Loading…</div></div>');
+  '<div class="grid" style="margin-top:8px"><button class="big" onclick="go(personEdit,{})"><span class="i">＋</span>Add participant</button><button class="big" id="p_asb" onclick="S.assign=!S.assign;peopleRender()"><span class="i">🙏</span>Assign prayer partners</button></div>'+
+  '<div id="p_out">'+(S.people?'':'<div class="loading">Loading…</div>')+'</div>');
   if(f.mine)$('p_st').value='mine';
-  call('teamPeople',AUTH).then(function(list){S.people=list;peopleRender()}).catch(function(e){$('p_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
+  if(S.people)peopleRender();
+  loadPeople();
 }
 function isReg(p){return p.Status==='Registered'||p.Status==='Paid'||p.Status==='Free'}
+function partnerOptions(sm,cur){
+  var l=S.lists.team.filter(function(m){return m.active&&(!m.seminars||!m.seminars.length||!sm||m.seminars.indexOf(sm)>=0)});
+  if(cur&&!l.some(function(m){return m.name===cur}))l.push({name:cur});
+  return opts([{v:'',l:'– none yet –'}].concat(l.map(function(m){return {v:m.name,l:m.name}})),cur||'','v','l');
+}
+function setPartner(id,sel){
+  var v=sel.value,m=sel.nextElementSibling;sel.disabled=true;if(m)m.textContent='saving…';
+  call('teamSetPartner',AUTH,id,v).then(function(){
+    S.people.forEach(function(p){if(p.ID===id)p['Prayer partner']=v});sel.disabled=false;if(m){m.textContent='✓ saved';setTimeout(function(){m.textContent=''},1500)}
+  }).catch(function(e){sel.disabled=false;if(m)m.textContent='';alert(e)});
+}
 function peopleRender(){
-  if(!S.people)return;
-  var sm=$('p_sem').value,st=$('p_st').value,q=$('p_q').value.toLowerCase(),fin=S.finance;
+  if(!S.people||!$('p_out'))return;
+  var sm=$('p_sem').value,st=$('p_st').value,q=$('p_q').value.toLowerCase(),fin=S.finance,as=!!S.assign;
+  $('p_asb').className='big'+(as?' main':'');
   S.stack[S.stack.length-1]=[peopleView,{seminar:sm,mine:st==='mine'?1:0}];
   var l=S.people.filter(function(p){return (!sm||p.Seminar===sm)&&(!st||(st==='owe'?Number(p.Balance)>0:st==='mine'?p['Prayer partner']===S.me:st==='nopartner'?!p['Prayer partner']:st==='Registered'?isReg(p):st==='Pending'?!isReg(p):p.Status===st))&&(!q||(p.Name+' '+p.Phone).toLowerCase().indexOf(q)>=0)});
   var reg=l.filter(isReg).length;
-  var stat='<div class="stat"><div><b>'+l.length+'</b><span>People</span></div><div><b class="pos">'+reg+'</b><span>Registered</span></div><div><b class="'+(l.length-reg?'neg':'')+'">'+(l.length-reg)+'</b><span>Pending</span></div></div>';
+  var stat='<div class="stat"><div><b>'+(l.length-reg)+'</b><span>Signed up</span></div><div><b class="pos">'+reg+'</b><span>Registered</span></div></div>';
   if(fin){var due=l.reduce(function(a,p){return a+Number(p.Due||0)},0),paid=l.reduce(function(a,p){return a+Number(p['Paid (confirmed)']||0)},0);stat+='<div class="sub" style="text-align:center">Fees received '+money(paid)+' · still open '+money(due-paid)+'</div>'}
-  $('p_out').innerHTML=stat+'<div class="card"><div class="list">'+(l.map(function(p){return '<div class="it tap" onclick="go(personView,\''+p.ID+'\')"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+(p['Prayer partner']?' · 🙏 '+esc(p['Prayer partner']):'')+(fin&&Number(p.Discount)?' · discount '+money(p.Discount):'')+'</div></div><div class="r">'+chip(p.Status)+'<div class="sub">'+(fin&&Number(p.Balance)>0?'owes '+money(p.Balance):'')+'</div></div></div>'}).join('')||'<div class="sub">No one here yet.</div>')+'</div></div>';
+  if(as)stat+='<div class="msg info">Choose a prayer partner for each person – it saves right away. Only team members who are part of that retreat are listed.</div>';
+  $('p_out').innerHTML=stat+'<div class="card"><div class="list">'+(l.map(function(p){
+    if(as)return '<div class="it"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+'</div></div><div class="r" style="min-width:48%"><select onchange="setPartner(\''+p.ID+'\',this)">'+partnerOptions(p.Seminar,p['Prayer partner'])+'</select><span class="hint"></span></div></div>';
+    return '<div class="it tap" onclick="go(personView,\''+p.ID+'\')"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+(p['Prayer partner']?' · 🙏 '+esc(p['Prayer partner']):'')+(fin&&Number(p.Discount)?' · discount '+money(p.Discount):'')+'</div></div><div class="r">'+pchip(p.Status)+'<div class="sub">'+(fin&&Number(p.Balance)>0?'owes '+money(p.Balance):'')+'</div></div></div>'}).join('')||'<div class="sub">No one here yet.</div>')+'</div></div>';
 }
 function personView(id){
   var p=S.people.filter(function(x){return x.ID===id})[0];if(!p)return goBack();var fin=S.finance;
   var wa='https://wa.me/'+phone254(p.Phone)+'?text='+encodeURIComponent('Hello '+String(p.Name).split(' ')[0]+', this is your personal Soul Care page for '+rtParts(sem(p.Seminar).name).nm+'. You can see your registration and report your M-Pesa payments here: '+p.link);
-  render(topbar(p.Name,true)+'<div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+' · '+esc(p.Role)+(p['Prayer partner']?' · 🙏 '+esc(p['Prayer partner']):' · <span class="neg">no prayer partner yet</span>')+'</div>'+
-  '<div style="margin:8px 0">'+chip(p.Status)+'</div>'+
+  render(topbar(p.Name,true)+'<div class="sub">'+esc(rtParts(sem(p.Seminar).name).nm)+' · '+esc(p.Role)+'</div>'+
+  '<div style="margin:8px 0">'+pchip(p.Status)+'</div>'+
   (p.Phone?'<div style="margin:8px 0"><a href="tel:'+esc(p.Phone)+'">📞 '+esc(p.Phone)+'</a> · <a target="_blank" href="https://wa.me/'+phone254(p.Phone)+'">WhatsApp</a></div>':'')+
+  '<label>🙏 Prayer partner</label><select onchange="setPartner(\''+p.ID+'\',this)">'+partnerOptions(p.Seminar,p['Prayer partner'])+'</select><span class="hint"></span>'+
   (fin?'<div class="stat"><div><b>'+money(p.Due)+'</b><span>Due</span></div><div><b class="pos">'+money(p['Paid (confirmed)'])+'</b><span>Paid</span></div><div><b class="'+(p.Balance>0?'neg':'')+'">'+money(p.Balance)+'</b><span>Open</span></div></div>'+
     (Number(p.Discount)?'<div class="msg info">Discount '+money(p.Discount)+(p['Discount reason']?' – '+esc(p['Discount reason']):'')+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div>':'')+
     '<button class="btn" onclick="go(txForm,{from:\'OUT-PART\',to:\'KE-PHONE\',participantId:\''+p.ID+'\',seminar:\''+p.Seminar+'\'})">+ Add payment</button>':'')+
@@ -550,7 +613,7 @@ function teamRender(){
   var base=(l.filter(function(m){return m.link})[0]||{link:''}).link.split('?')[0];
   $('tm_out').innerHTML=(base?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="memberEdit(-1)">+ Add team member</button>'+
   l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="memberEdit('+i+')">Edit</button></div></div>'+
-    (m.group.length?'<div class="list" style="margin-top:6px">'+m.group.map(function(p){return '<div class="it"><div class="l"><div>'+esc(p.name)+'</div><div class="sub">'+esc(rtParts(sem(p.seminar).name).nm)+'</div></div><div class="r">'+chip(p.status)+'</div></div>'}).join('')+'</div>':'')+
+    (m.group.length?'<div class="list" style="margin-top:6px">'+m.group.map(function(p){return '<div class="it"><div class="l"><div>'+esc(p.name)+'</div><div class="sub">'+esc(rtParts(sem(p.seminar).name).nm)+'</div></div><div class="r">'+pchip(p.status)+'</div></div>'}).join('')+'</div>':'')+
     '</div>'}).join('')+'<div class="hint">To assign a prayer partner: Participants → tap a name → Edit details.</div>';
 }
 function memberEdit(i){
