@@ -360,8 +360,8 @@ function frow(op,label,v,cls){return '<div class="frow'+(cls?' '+cls:'')+'"><spa
 function fundsCard(d,link){var nk=window.NOKES;window.NOKES=true;try{return fundsCard_(d,link)}finally{window.NOKES=nk}}
 function fundsCard_(d,link){
   return '<div class="card"><h3>Funds overview (KES)</h3>'+
-  frow('','Received so far',d.income)+frow('','Spent so far',d.spent)+
-  frow('','Money we hold now',d.hold)+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
+  (d.carry?frow('','Carried over from 2026',d.carry):'')+frow('+','Received so far',d.income)+frow('−','Spent so far',d.spent)+
+  frow('=','Money we hold now',d.hold,'tot')+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
   frow('=','Available now',d.available,'tot')+
   frow('+','Participant fees still expected',d.expected)+
   frow('−','Planned costs still to pay',d.stillPlanned)+
@@ -536,7 +536,7 @@ function movePartner(id,name){
 }
 function balRow(b){
   var chk=b.lastCheck&&b.id==='KE-PHONE'?('<div class="sub">checked '+esc(b.lastCheck.date)+(Math.abs(b.lastCheck.diff)>0.5?' · <span class="neg">off by '+money(b.lastCheck.diff,b.cur)+'</span>':' ✓')+'</div>'):'';
-  return '<div class="it tap" onclick="go(txList,{account:\''+b.id+'\'})"><div class="l"><div class="t">'+esc(b.name)+'</div>'+chk+'</div><div class="r"><b class="'+(b.balance<0?'neg':'')+'">'+money(b.balance,b.cur)+'</b></div></div>';
+  return '<div class="it tap" onclick="go(txList,{account:\''+b.id+'\'})"><div class="l"><div class="t">'+esc(b.name)+' ›</div>'+(Number(b.opening)?'<div class="sub">incl. '+money(b.opening,b.cur)+' carried over from 2026</div>':'')+chk+'</div><div class="r"><b class="'+(b.balance<0?'neg':'')+'">'+money(b.balance,b.cur)+'</b></div></div>';
 }
 function settleDonation(id,btn){
   if(!confirm('Count the amount owed as a private donation? It will no longer be paid back.'))return;
@@ -758,8 +758,10 @@ function txFilter(){
   var f={seminar:$('l_sem').value,account:$('l_acc').value,q:$('l_q').value};
   S.stack[S.stack.length-1]=[txList,f];
   call('teamTransactions',AUTH,f).then(function(list){
-    S.txl=list;
-    $('l_out').innerHTML=list.length?'<div class="list">'+list.map(function(t,i){
+    S.txl=list;var ob=f.account&&S.home.balances?S.home.balances.filter(function(b){return b.id===f.account})[0]:null;
+    var carry=ob&&Number(ob.opening)?'<div class="it"><div class="l"><div class="t">Carried over from the 2026 project</div><div class="sub">starting balance from the Kenia-Finanz sheet</div></div><div class="r"><b class="pos">+'+money(ob.opening,ob.cur)+'</b></div></div>':'';
+    if(ob)carry='<div class="frow tot" style="padding:4px 0 10px"><span>'+esc(ob.name)+' now</span><b>'+money(ob.balance,ob.cur)+'</b></div>'+carry;
+    $('l_out').innerHTML=(list.length||carry)?carry+'<div class="list">'+list.map(function(t,i){
       var sign=t.Kind==='Income'?'+':t.Kind==='Transfer'?'⇄ ':'−';
       var title=t.Kind==='Transfer'?acc(t.From).name+' → '+acc(t.To).name:(t.personName||t.Party||t.Description||t.Category);
       return '<div class="it tap" onclick="go(txForm,{tx:S.txl['+i+']})"><div class="l"><div class="t">'+esc(title)+'</div><div class="sub">'+esc(t.Date)+' · '+esc(t.Category)+' · '+esc(sem(t.Seminar).name)+(t.Kind!=='Transfer'?' · '+esc(acc(t.Kind==='Income'?t.To:t.From).name):'')+'</div>'+(t.Description&&title!==t.Description?'<div class="sub">'+esc(t.Description)+'</div>':'')+'</div>'+
