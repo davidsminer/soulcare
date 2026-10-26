@@ -377,6 +377,7 @@ function semLabel(k){return k==='GEN'?'Whole project (both retreats)':rtParts(se
 function budgetRender(){window.NOKES=true;try{budgetRender_()}finally{window.NOKES=false}}
 function budgetRender_(){
   var d=S.home.budget,x=fundsCard(d,false);
+  x=whatIfCard(d)+x;
   x+='<h2 style="margin-top:24px">The retreats</h2>'+d.sems.map(function(s,i){
     return '<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;line-height:1.1;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
     '<div class="stat"><div><b>'+s.planned+'</b><span>Planned</span></div><div><b>'+s.signed+'</b><span>Signed up</span></div><div><b class="pos">'+s.registered+'</b><span>Registered</span></div></div>'+
@@ -397,8 +398,34 @@ function budgetRender_(){
         (r.auto?'<div class="it tap" onclick="planFromHome(\''+r.seminar+'\')"><div class="l"><div>Participants & team at the venue ✏️</div><div class="sub">calculated from the planned numbers</div></div><div class="r">'+money(r.auto)+'</div></div>':'')+
         r.lines.map(function(l){return '<div class="it tap" onclick="go(budgetEdit,{id:\''+l.id+'\'})"><div class="l"><div>'+esc(l.description||'(no description)')+' ✏️</div>'+(l.notes?'<div class="sub">'+esc(l.notes)+'</div>':'')+'</div><div class="r">'+money(l.amount,l.cur)+(l.cur!=='KES'?'<div class="sub">≈ '+money(l.kes)+'</div>':'')+'</div></div>'}).join('')+'</div></div>'}).join('')+
       '<div class="hint" style="margin-top:8px"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
-  $('bg_out').innerHTML=x;bgCalc();
+  $('bg_out').innerHTML=x;bgCalc();wiCalc();
 }
+function whatIfCard(d){
+  if(!S.wi)S.wi={avg:5000,n:{}};
+  return '<div class="card" style="border:2px solid var(--brand)"><h3>🧮 What if…</h3><div class="sub">Try out numbers – nothing is saved.</div>'+
+  '<label>On average, a participant pays (KES)</label><div style="display:flex;gap:8px;align-items:center"><input id="wi_avg" type="range" min="0" max="'+(d.sems[0]?d.sems[0].price:19000)+'" step="500" value="'+S.wi.avg+'" oninput="S.wi.avg=+this.value;$(\'wi_avgn\').value=this.value;wiCalc()" style="flex:2"><input id="wi_avgn" type="number" inputmode="numeric" value="'+S.wi.avg+'" style="flex:1;margin:0" oninput="S.wi.avg=+this.value||0;$(\'wi_avg\').value=S.wi.avg;wiCalc()"></div>'+
+  d.sems.map(function(s){var v=S.wi.n[s.id]!=null?S.wi.n[s.id]:s.n;return '<label>Participants at '+esc(rtParts(s.name).nm)+' <span class="sub">(+ '+s.team+' team)</span></label><input type="number" inputmode="numeric" value="'+v+'" oninput="S.wi.n[\''+s.id+'\']=Math.max(0,+this.value||0);wiCalc()">'}).join('')+
+  '<div id="wi_out" style="margin-top:12px"></div></div>'}
+function wiCalc(){var d=S.home.budget,el=$('wi_out');if(!el)return;var nk=window.NOKES;window.NOKES=true;
+  var acc=(d.cats.filter(function(c){return /accommodation/i.test(c.name)})[0]||{rows:[]}).rows;
+  var venueNow=0,venueNew=0,feesIn=0,people=0,costPP=0;
+  d.sems.forEach(function(s){var r=acc.filter(function(x){return x.seminar===s.id})[0]||{planned:0,auto:0,spent:0};
+    var n=S.wi.n[s.id]!=null?S.wi.n[s.id]:s.n;people+=n;costPP=s.costP;
+    venueNow+=Math.max(0,r.planned-r.spent);
+    venueNew+=Math.max(0,(n*s.costP+s.team*s.costT)+(r.planned-r.auto)-r.spent);
+    feesIn+=Math.max(0,n*S.wi.avg-s.received)});
+  var other=d.stillPlanned-d.discounts-venueNow;
+  var costs=other+venueNew,have=d.available+feesIn,res=have-costs;
+  var fixed=costs-d.available+d.sems.reduce(function(a,s){return a+s.received},0);
+  var be=people?Math.ceil(fixed/people/500)*500:0;
+  var perHead=costPP-S.wi.avg;var more=perHead>0?Math.floor(Math.abs(res)/perHead):0;
+  var x=frow('','Money available now',d.available)+frow('+','Participants pay ('+people+' × '+money(S.wi.avg)+')',feesIn)+
+    frow('−','Venue ('+people+' participants + team)',venueNew)+frow('−','All other planned costs',other)+
+    frow('=',res>=0?'Surplus':'Deficit',res,'tot');
+  x+=res>=0?'<div class="msg ok">✓ This works. '+(perHead>0?'You could invite about <b>'+more+' more</b> participants at this average.':'')+'</div>'
+    :'<div class="msg err">Short by <b>'+money(-res)+'</b>. '+(perHead>0?'That is about <b>'+more+' participants too many</b> at this average – or raise '+money(-res)+' more.':'')+'</div>';
+  x+='<div class="hint">To break even with '+people+' participants, each would need to pay about <b>'+money(Math.max(0,be))+'</b> on average. Each participant costs '+money(costPP)+' at the venue.</div>';
+  el.innerHTML=x;window.NOKES=nk}
 function planFromHome(id){var b=S.home.budget;if(!b)return;var i=b.sems.map(function(x){return x.id}).indexOf(id);if(i>=0)go(planEdit,i)}
 function planEdit(i){var s=S.home.budget.sems[i];
   render(topbar('Planned numbers',true)+'<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
