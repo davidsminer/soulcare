@@ -339,7 +339,7 @@ function teamHome(){
   x+=h.seminars.filter(function(s){return S.admin||!mySems.length||mySems.indexOf(s.id)>=0}).map(function(s){var p=rtParts(s.name),inIt=!mySems.length||mySems.indexOf(s.id)>=0,mine=(h.mine||[]).filter(function(m){return m.seminar===s.id});
     return '<div class="card"><div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)">'+esc(p.lbl)+'</div><div style="font-family:Sacramento,cursive;font-size:34px;line-height:1.15;color:var(--brand)">'+esc(p.nm)+'</div>'+
     '<div class="stat" style="margin:6px 0 0"><div'+(fin?' class="tap" onclick="planFromHome(\''+s.id+'\')"':'')+'><b>'+((s.booked||s.planned)||'–')+(fin?' ✏️':'')+'</b><span>'+(s.booked?'Places booked':'Planned')+'</span></div><div><b>'+(s.pending||0)+'</b><span>Signed up</span></div><div><b class="pos">'+(s.registered||0)+'</b><span>Registered</span></div></div>'+
-    (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+
+    (fin?'<div class="sub" style="margin-top:8px">Fees received '+money(s.paid)+' of '+money(s.due)+'</div>':'')+teamAt(s.id)+
     (inIt?'<div class="mine"><b>🙏 My prayer group</b>'+(mine.length?'<div class="list">'+mine.map(function(m){return '<div class="it"><div class="l tap" onclick="openPerson(\''+m.id+'\')"><div class="t">'+esc(m.name)+'</div><div>'+pchip(m.status)+'</div></div><div class="r" style="white-space:nowrap">'+(m.phone?'<a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0 4px 0 0" href="tel:'+esc(String(m.phone).replace(/\s/g,''))+'">📞</a><a class="btn small light" style="text-decoration:none;display:inline-block;width:auto;margin:0" target="_blank" href="https://wa.me/'+phone254(m.phone)+'">💬</a>':'<span class="sub">no phone</span>')+'</div></div>'}).join('')+'</div>':'<div class="sub">No one assigned to you yet.</div>')+'</div>':'')+
     '<button class="btn light small" style="margin-top:10px" onclick="go(peopleView,{seminar:\''+s.id+'\'})">All participants of this retreat ›</button></div>'}).join('');
   if(fin){
@@ -931,6 +931,7 @@ function teamView(){
   render(topbar('Team',true)+'<div id="tm_out"><div class="loading">Loading…</div></div>');
   call('teamMembers',AUTH).then(function(l){S.members=l;teamRender()}).catch(function(e){$('tm_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
 }
+function teamAt(id){var l=S.lists.team.filter(function(m){return m.active&&inSem(m.seminars,id)});return '<div class="mine"><b>👥 Team ('+l.length+')</b><div class="sub" style="margin-top:4px;line-height:1.5">'+(l.length?l.map(function(m){return esc(m.name)}).join(' · '):'No team members set for this retreat yet.')+'</div></div>'}
 function inSem(a,id){return !a||!a.length||a.indexOf(id)>=0}
 function semChips(a){if(a&&a[0]==='NONE')return '<span class="chip c-Free">Not at a retreat</span>';return S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=inSem(a,s.id);return on?'<span class="chip c-Paid" style="margin-right:4px">✓ '+esc(rtParts(s.name).nm)+'</span>':''}).join('')}
 function semNames(a){return a&&a.length?(a[0]==='NONE'?'Not at a retreat':a.map(function(id){return rtParts(sem(id).name).nm}).join(' & ')):'Both retreats'}
