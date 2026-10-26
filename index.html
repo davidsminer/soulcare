@@ -381,7 +381,7 @@ function budgetRender_(){
     return '<div class="card"><div style="font-family:Sacramento,cursive;font-size:30px;line-height:1.1;color:var(--brand)">'+esc(rtParts(s.name).nm)+'</div>'+
     '<div class="stat"><div><b>'+s.planned+'</b><span>Planned</span></div><div><b>'+s.signed+'</b><span>Signed up</span></div><div><b class="pos">'+s.registered+'</b><span>Registered</span></div></div>'+
     frow('','Venue: '+s.n+' participants × '+money(s.costP),s.n*s.costP)+(s.signed>s.planned?'<div class="hint">More signed up than planned – using the real number.</div>':'')+
-    frow('','Venue: '+s.team+' team members × '+money(s.costT),s.team*s.costT)+
+    frow('','Team at the venue: '+s.team+' × '+money(s.costT)+' (they pay nothing)',s.team*s.costT)+
     frow('','Participant fees ('+s.n+' × '+money(s.price)+')',s.fees)+frow('','Received so far',s.received)+
     frow('','Discounts promised'+(s.discounted?' ('+s.discounted+' people)':''),s.discounts)+
     '<button class="btn light small" onclick="go(planEdit,'+i+')">Edit planned numbers</button></div>'}).join('');
@@ -835,7 +835,7 @@ function personView(id){
   (S.viewAs&&p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(p.link+'&test=1')+'">👁 View their page (test)</a>':'')+
   answers(p)+
   (fin?'<div class="card"><h3>Payments</h3><div class="list">'+(p.payments.map(function(x){return '<div class="it"><div class="l"><div class="t">'+money(x.amount)+'</div><div class="sub">'+esc(x.date)+' · '+esc(x.code)+(x.party&&x.party!==p.Name?' · from '+esc(x.party):'')+'</div></div><div class="r">'+chip(x.status)+'</div></div>'}).join('')||'<div class="sub">No payments yet.</div>')+'</div></div>':'')+
-  '<button class="btn light" onclick="go(personEdit,{id:\''+p.ID+'\'})">Edit details'+(fin?' / price / discount':'')+'</button>');
+  '<button class="btn light" onclick="go(personEdit,{id:\''+p.ID+'\'})">Edit details'+(fin?' / price / discount':'')+'</button>'+(S.admin?'<div id="pd_box"><button class="btn red" onclick="personDel(\''+p.ID+'\',this)">Delete participant</button></div>':''));
 }
 function bursaryBox(p){var st=p['Financial support']||'',max=(Number(p.Price)||0)-((sem(p.Seminar).deposit)||0);
   var head=st==='Requested'?'<div class="msg info">💛 <b>Asked for financial support</b>'+(p['Financial support note']?': “'+esc(p['Financial support note'])+'”':'')+'</div>':st==='Approved'?'<div class="msg ok">💛 Financial support approved: <b>'+money(p.Discount)+'</b></div>':st==='Not approved'?'<div class="msg info">💛 Financial support not approved</div>':'';
@@ -844,6 +844,15 @@ function bursaryBox(p){var st=p['Financial support']||'',max=(Number(p.Price)||0
   '<div id="bu_m"></div><button class="btn" onclick="bursaryDo(\''+p.ID+'\',\'Approved\',this)">'+(st==='Approved'?'Change amount':'Approve financial support')+'</button>'+
   (st&&st!=='Not approved'?'<button class="btn light" onclick="bursaryDo(\''+p.ID+'\',\'Not approved\',this)">Not approved</button>':'')+'</div>'}
 function bursaryDo(id,dec,btn){busy(btn,true);call('teamBursary',AUTH,id,dec,dec==='Approved'?$('bu_a').value:0).then(function(l){S.people=l;return refreshHome()}).then(function(){personView(id)}).catch(function(e){busy(btn,false);showMsg('bu_m',e,'err')})}
+function personDel(id,btn){var p=S.people.filter(function(x){return x.ID===id})[0];if(!confirm('Delete '+p.Name+' ('+rtParts(sem(p.Seminar).name).nm+')? This cannot be undone.'))return;busy(btn,true);
+  call('teamPersonDelete',AUTH,id).then(personDelDone).catch(function(e){busy(btn,false);
+    if(String(e).indexOf('HAS_PAYMENTS')<0){alert(e);return}
+    var others=S.people.filter(function(x){return x.ID!==id}).sort(function(a,b){return (b.Name===p.Name)-(a.Name===p.Name)});
+    $('pd_box').innerHTML='<div class="card" style="border:2px solid var(--bad)"><h3>'+esc(p.Name)+' has payments</h3><div class="sub">If this is a duplicate, choose the entry to keep. Their payments move there, then this one is deleted.</div>'+
+      '<select id="pd_keep">'+'<option value="">Choose the entry to keep…</option>'+others.map(function(x){return '<option value="'+x.ID+'">'+esc(x.Name)+' – '+esc(rtParts(sem(x.Seminar).name).nm)+(x.Phone?' · '+esc(x.Phone):'')+'</option>'}).join('')+'</select>'+
+      '<button class="btn red" onclick="personMerge(\''+id+'\',this)">Move payments &amp; delete duplicate</button><button class="btn light" onclick="personView(\''+id+'\')">Cancel</button></div>'})}
+function personMerge(id,btn){var k=$('pd_keep').value;if(!k){alert('Please choose the entry to keep.');return}busy(btn,true);call('teamPersonDelete',AUTH,id,k).then(personDelDone).catch(function(e){busy(btn,false);alert(e)})}
+function personDelDone(l){S.people=l;try{store('sc_pp_'+AUTH.t,JSON.stringify(l))}catch(e){}refreshHome();S.stack.pop();var t=S.stack[S.stack.length-1];if(t&&t[0]===personView)S.stack.pop();if(!S.stack.length)S.stack=[[teamHome]];var top=S.stack[S.stack.length-1];top[0](top[1])}
 function personEdit(o){
   var p=o.id?S.people.filter(function(x){return x.ID===o.id})[0]:{Seminar:(S.pf&&S.pf.seminar)||'',Role:'Participant'};
   var sems=S.lists.seminars.filter(function(s){return s.id!=='GEN'}),fin=S.finance;
@@ -888,7 +897,7 @@ function teamView(){
   render(topbar('Team',true)+'<div id="tm_out"><div class="loading">Loading…</div></div>');
   call('teamMembers',AUTH).then(function(l){S.members=l;teamRender()}).catch(function(e){$('tm_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
 }
-function semNames(a){return a&&a.length?a.map(function(id){return rtParts(sem(id).name).nm}).join(' & '):'Both retreats'}
+function semNames(a){return a&&a.length?(a[0]==='NONE'?'Not at a retreat':a.map(function(id){return rtParts(sem(id).name).nm}).join(' & ')):'Both retreats'}
 function teamRender(){
   var l=S.members;
   var base=(l.filter(function(m){return m.link})[0]||{link:''}).link.split('?')[0];
@@ -903,7 +912,7 @@ function memberEdit(i){
   var desc={'Team member':'Participants, prayer groups and tasks – no money','Leader':'Everything: money, budget, team list, prayer groups','Admin':'Everything, plus viewing the app as someone else'};
   render(topbar(i>=0?'Edit team member':'New team member',false)+'<div class="card">'+
   '<label>Name</label><input id="m_name" value="'+esc(m.name)+'">'+
-  '<label>Part of which retreats?</label><div class="opts" id="m_sems">'+S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=!m.seminars||!m.seminars.length||m.seminars.indexOf(s.id)>=0;return '<button data-v="'+s.id+'" class="'+(on?'on':'')+'" onclick="this.classList.toggle(\'on\')">'+esc(rtParts(s.name).nm)+'</button>'}).join('')+'</div>'+
+  '<label>Part of which retreats?</label><div class="hint">Tap to switch on or off. Leave both off for someone who is not at a retreat (e.g. admin).</div><div class="opts" id="m_sems">'+S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=!m.seminars||!m.seminars.length||m.seminars.indexOf(s.id)>=0;return '<button data-v="'+s.id+'" class="'+(on?'on':'')+'" onclick="this.classList.toggle(\'on\')">'+esc(rtParts(s.name).nm)+'</button>'}).join('')+'</div>'+
   '<label>Role</label><div class="opts" id="m_role" data-v="'+esc(m.role)+'">'+['Team member','Leader','Admin'].map(function(r){return '<button data-v="'+r+'" class="'+(r===m.role?'on':'')+'" onclick="segPick(this)">'+r+'<div class="sub">'+desc[r]+'</div></button>'}).join('')+'</div>'+
   '<label>Phone (for WhatsApp)</label><input id="m_phone" type="tel" value="'+esc(m.phone||'')+'">'+
   '<label>Access</label><div class="seg" id="m_act" data-v="'+(m.active?'1':'0')+'"><button data-v="1" class="'+(m.active?'on':'')+'" onclick="segPick(this)">Active</button><button data-v="0" class="'+(m.active?'':'on')+'" onclick="segPick(this)">Switched off</button></div>'+
@@ -915,9 +924,9 @@ function memberDel(i,btn){var n=S.members[i].name;if(!confirm('Delete '+n+' from
   call('teamMemberDelete',AUTH,n).then(function(l){S.members=l;return refreshHome()}).then(function(){S.people=null;loadPeople();S.stack=[[teamHome],[teamView]];teamView()}).catch(function(e){busy(btn,false);showMsg('m_msg',e,'err')})}
 function memberSave(i,btn){var orig=i>=0?S.members[i].name:'';
   var all=$('m_sems').querySelectorAll('button'),on=[].filter.call(all,function(b){return b.classList.contains('on')}).map(function(b){return b.dataset.v});
-  if(!on.length){showMsg('m_msg','Please choose at least one retreat.','err');return}
+  
   busy(btn,true);
-  call('teamMemberSave',AUTH,{orig:orig,name:$('m_name').value,role:$('m_role').dataset.v||'Team member',phone:$('m_phone').value,active:$('m_act').dataset.v!=='0',seminars:on.length===all.length?[]:on})
+  call('teamMemberSave',AUTH,{orig:orig,name:$('m_name').value,role:$('m_role').dataset.v||'Team member',phone:$('m_phone').value,active:$('m_act').dataset.v!=='0',seminars:on.length===all.length?[]:(on.length?on:['NONE'])})
   .then(function(l){S.members=l;return refreshHome()}).then(function(){var n=$('m_name').value.trim(),j=S.members.map(function(m){return m.name}).indexOf(n);S.stack=[[teamHome],[teamView]];if(j>=0)memberEdit(j);else teamView()})
   .catch(function(e){busy(btn,false);showMsg('m_msg',e,'err')})}
 function partnerHome(){
