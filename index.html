@@ -363,7 +363,7 @@ function fundsCard_(d,link){
   (d.carry?frow('','Carried over from 2026',d.carry):'')+frow('+','Received so far',d.income)+frow('−','Spent so far',d.spent)+
   frow('=','Money we hold now',d.hold,'tot')+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
   frow('=','Available now',d.available,'tot')+
-  frow('+','Participant fees still expected',d.expected)+
+  frow('+','Participant fees still expected (if all pay full price)',d.expected)+
   frow('−','Planned costs still to pay',d.stillPlanned)+
   frow('=','Left after the plan',d.free,'tot')+
   '<div class="hint">“Planned costs” include the budget below and the discounts already promised ('+money(d.discounts)+'). Rates: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
@@ -931,12 +931,15 @@ function teamView(){
   render(topbar('Team',true)+'<div id="tm_out"><div class="loading">Loading…</div></div>');
   call('teamMembers',AUTH).then(function(l){S.members=l;teamRender()}).catch(function(e){$('tm_out').innerHTML='<div class="msg err">'+esc(e)+'</div>'});
 }
+function inSem(a,id){return !a||!a.length||a.indexOf(id)>=0}
+function semChips(a){if(a&&a[0]==='NONE')return '<span class="chip c-Free">Not at a retreat</span>';return S.lists.seminars.filter(function(s){return s.id!=='GEN'}).map(function(s){var on=inSem(a,s.id);return on?'<span class="chip c-Paid" style="margin-right:4px">✓ '+esc(rtParts(s.name).nm)+'</span>':''}).join('')}
 function semNames(a){return a&&a.length?(a[0]==='NONE'?'Not at a retreat':a.map(function(id){return rtParts(sem(id).name).nm}).join(' & ')):'Both retreats'}
 function teamRender(){
   var l=S.members;
   var base=(l.filter(function(m){return m.link})[0]||{link:''}).link.split('?')[0];
-  $('tm_out').innerHTML=(base&&S.viewAs?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="go(memberEdit,-1)">+ Add team member</button>'+
-  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+' · '+esc(semNames(m.seminars))+' · '+m.group.length+' in prayer group</div></div><div class="r">'+(m.link&&S.viewAs?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="go(memberEdit,'+i+')">Edit</button></div></div>'+
+  var rs=S.lists.seminars.filter(function(s){return s.id!=='GEN'});var cnt=rs.map(function(s){return '<div><b>'+l.filter(function(m){return m.active&&inSem(m.seminars,s.id)}).length+'</b><span>'+esc(rtParts(s.name).nm)+'</span></div>'}).join('')+'<div><b>'+l.filter(function(m){return m.active&&m.seminars&&m.seminars[0]==='NONE'}).length+'</b><span>Neither</span></div>';
+  $('tm_out').innerHTML='<div class="stat">'+cnt+'</div>'+(base&&S.viewAs?'<div class="card"><h3>🧪 Testing</h3><div class="sub">"View as" opens the app exactly as that person sees it, without changing who this phone is signed in as. Anything you save there is real data – start test names with TEST so they are easy to delete.</div><a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(base+'?signup=1&test=1')+'">Open sign-up form (test)</a></div>':'')+'<button class="btn light" onclick="go(memberEdit,-1)">+ Add team member</button>'+
+  l.map(function(m,i){return '<div class="card"><div class="it" style="border:0;padding:0"><div class="l"><div class="t">'+esc(m.name)+(m.active?'':' <span class="chip c-Not">switched off</span>')+'</div><div class="sub">'+esc(m.role||'')+(m.group.length?' · '+m.group.length+' in prayer group':'')+'</div><div style="margin-top:4px">'+semChips(m.seminars)+'</div></div><div class="r">'+(m.link&&S.viewAs?'<a class="btn small light" style="text-decoration:none;margin-bottom:4px" target="_blank" href="'+esc(m.link+'&test=1')+'">👁 View as</a>':'')+'<button class="btn small light" onclick="go(memberEdit,'+i+')">Edit</button></div></div>'+
     (m.group.length?'<div class="list" style="margin-top:6px">'+m.group.map(function(p){return '<div class="it"><div class="l"><div>'+esc(p.name)+'</div><div class="sub">'+esc(rtParts(sem(p.seminar).name).nm)+'</div></div><div class="r">'+pchip(p.status)+'</div></div>'}).join('')+'</div>':'')+
     '</div>'}).join('')+'<div class="hint">To assign a prayer partner: Participants → tap a name → Edit details.</div>';
 }
