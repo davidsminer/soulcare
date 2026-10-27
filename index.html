@@ -330,6 +330,7 @@ function teamHome(){
   var x='<div class="hero sm" style="background-image:url('+HERO+')"><div class="ttl">Soul Care</div></div><div class="sub">Hi '+esc(S.me)+' 👋</div>';
   x+=(h.news||S.admin)?'<div class="card news"><h3>📣 Team news</h3><div>'+(h.news?linkify(h.news):'<span class="sub">Nothing yet. Add the next team meeting here (date, time, link).</span>')+'</div>'+(S.admin?'<div class="hint"><a href="#" onclick="go(newsEdit);return false">✏️ Edit team news</a></div>':'')+'</div>':'';
   var mySems=h.mySems||[];
+  if(fin)x+='<button class="btn" style="margin:4px 0 12px;padding:16px;font-size:19px" onclick="go(txForm,{})">＋ Track a transaction<div style="font-size:13px;font-weight:400;opacity:.85">or paste an M-Pesa SMS</div></button>';
   if(fin)x+=needsCard(h);
   var mt=h.myTasks||[];
   x+='<div class="card"><h3>✅ My tasks</h3>'+(mt.length?'<div class="list">'+mt.map(function(t){return '<div class="it tap" onclick="go(taskEdit,{id:\''+t.id+'\'})"><div class="l"><div class="t">'+esc(t.title)+'</div>'+(t.due?'<div class="sub'+(t.due<today()?' neg':'')+'">due '+esc(t.due)+'</div>':'')+'</div><div class="r">›</div></div>'}).join('')+'</div>':'<div class="sub">Nothing on your list.</div>')+
@@ -364,9 +365,10 @@ function fundsCard_(d,link){
   frow('=','Money we hold now',d.hold,'tot')+(d.priv?frow(d.priv<0?'−':'+','Private money '+(d.priv<0?'(owed to team)':'(held by team)'),Math.abs(d.priv)):'')+
   frow('=','Available now',d.available,'tot')+
   frow('+','Participant fees still expected (if all pay full price)',d.expected)+
-  frow('−','Planned costs still to pay',d.stillPlanned)+
+  frow('−','Planned costs still to pay',d.stillPlanned-d.discounts)+
+  frow('−','🔒 Financial support & discounts promised',d.discounts)+
   frow('=','Left after the plan',d.free,'tot')+
-  '<div class="hint">“Planned costs” include the budget below and the discounts already promised ('+money(d.discounts)+'). Rates: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
+  '<div class="hint">🔒 Promised financial support is set aside (locked) – it is not available for other spending. Rates: 1 EUR = '+d.rates.EUR+' KES, 1 USD = '+d.rates.USD+' KES.</div>'+
   (link?'<button class="btn light" onclick="go(budgetView)">📊 Budget & planning</button>':'')+'</div>'}
 function budgetView(){
   render(topbar('Budget & planning (KES)',true)+'<div id="bg_out">'+(S.home.budget?'':'<div class="loading">Loading…</div>')+'</div>');
@@ -386,6 +388,7 @@ function budgetRender_(){
     frow('','Participant fees ('+s.n+' × '+money(s.price)+')',s.fees)+frow('','Received so far',s.received)+
     frow('','Discounts promised'+(s.discounted?' ('+s.discounted+' people)':''),s.discounts)+
     '<button class="btn light small" onclick="go(planEdit,'+i+')">Edit planned numbers</button></div>'}).join('');
+  x+=lockedCard(d);
   x+='<div class="card"><h3>How much discount can we give?</h3>'+
     '<div class="sub">Left after the plan: <b class="'+(d.free<0?'neg':'')+'">'+money(d.free)+'</b></div>'+
     '<label>Number of participants to help</label><input id="bg_n" type="number" inputmode="numeric" value="'+(S.bgN||d.totalPeople||1)+'" oninput="S.bgN=Number(this.value)||1;bgCalc()">'+
@@ -400,6 +403,15 @@ function budgetRender_(){
       '<div class="hint" style="margin-top:8px"><a href="#" onclick="go(budgetEdit,{ci:'+ci+'});return false">＋ add to '+esc(c.name)+'</a></div></div>'}).join('');
   $('bg_out').innerHTML=x;bgCalc();wiCalc();
 }
+function lockedCard(d){
+  if(!S.people){loadPeople().then(function(){if($('bg_out'))budgetRender()});return '<div class="card"><h3>🔒 Financial support promised</h3><div class="loading">Loading…</div></div>'}
+  var l=S.people.filter(function(p){return Number(p.Discount)>0}).sort(function(a,b){return a.Seminar<b.Seminar?-1:a.Seminar>b.Seminar?1:Number(b.Discount)-Number(a.Discount)});
+  return '<div class="card" style="border:2px solid #d9a400"><h3>🔒 Financial support promised</h3><div class="sub">Set aside for these participants – this money is locked and not available for other costs.</div>'+
+  d.sems.map(function(s){var m=l.filter(function(p){return p.Seminar===s.id});if(!m.length)return '';var t=m.reduce(function(a,p){return a+Number(p.Discount)},0);
+    return '<div style="margin-top:10px"><div class="sub" style="font-weight:600">'+esc(rtParts(s.name).nm)+' · '+m.length+' '+(m.length>1?'people':'person')+' · '+money(t)+'</div><div class="list">'+
+    m.map(function(p){return '<div class="it tap" onclick="openPerson(\''+p.ID+'\')"><div class="l"><div>'+esc(p.Name)+'</div><div class="sub">'+(p['Financial support']==='Approved'?'💛 Financial support':'Discount'+(p['Discount reason']?' – '+esc(p['Discount reason']):''))+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div></div><div class="r">'+money(p.Discount)+'</div></div>'}).join('')+'</div></div>'}).join('')+
+  (l.length?'':'<div class="sub" style="margin-top:8px">Nothing promised yet. When a leader approves financial support on a participant\'s page, it appears here.</div>')+
+  frow('=','Total locked',d.discounts,'tot')+'</div>'}
 function whatIfCard(d){
   if(!S.wi)S.wi={avg:5000,n:{}};
   return '<div class="card" style="border:2px solid var(--brand)"><h3>🧮 What if…</h3><div class="sub">Try out numbers – nothing is saved.</div>'+
@@ -516,13 +528,14 @@ function nyAct(id,a,btn){busy(btn,true);call('teamAction',AUTH,id,a).then(nyDone
 function nyAssign(id,btn){var v=$('as_'+id).value;if(!v){alert('Please choose who paid.');return}busy(btn,true);call('teamAction',AUTH,id,'assign',v).then(nyDone).catch(function(e){busy(btn,false);alert(e)})}
 function nySupport(id,dec,btn){busy(btn,true);call('teamBursary',AUTH,id,dec,dec==='Approved'?$('ns_'+id).value:0).then(function(l){S.people=l;return nyDone()}).catch(function(e){busy(btn,false);alert(e)})}
 function remindView(){render(topbar('Payment reminders',true)+'<div id="rm_out">'+(S.people?'':'<div class="loading">Loading…</div>')+'</div>');if(S.people)remindRender();loadPeople().then(function(){if($('rm_out'))remindRender()})}
+function remindInfo(p){var s=sem(p.Seminar),due=Number(p.Due)||0,paid=(Number(p['Paid (confirmed)'])||0)+(Number(p['Paid (reported)'])||0),need=Math.max(0,Math.min(s.deposit||0,due)-paid),open=Math.max(0,due-paid);
+  return need>0?{p:p,amt:need,kind:'fee'}:open>0?{p:p,amt:open,kind:'bal'}:null}
+function remindMsg(r){var p=r.p,first=String(p.Name).split(' ')[0],nm=rtParts(sem(p.Seminar).name).nm,pay=payName()+(S.pay&&S.pay.phone?', '+S.pay.phone:'');
+  return r.kind==='fee'?'Hello '+first+', thank you for signing up for the Soul Care retreat “'+nm+'”! Your place is secured once the registration fee of '+money(r.amt)+' is paid. Please send it by M-Pesa (Send money) to '+pay+'. Your personal page: '+p.link+' – Blessings, '+S.me
+      :'Hello '+first+', we are looking forward to seeing you at the Soul Care retreat “'+nm+'”. '+money(r.amt)+' is still open – you can pay it in parts by M-Pesa (Send money) to '+pay+'. Your personal page: '+p.link+' – Blessings, '+S.me}
 function remindRender(){
-  var pay=payName()+(S.pay&&S.pay.phone?', '+S.pay.phone:'');
-  var fee=[],bal=[];S.people.forEach(function(p){var s=sem(p.Seminar),due=Number(p.Due)||0,paid=(Number(p['Paid (confirmed)'])||0)+(Number(p['Paid (reported)'])||0),need=Math.max(0,Math.min(s.deposit||0,due)-paid),open=Math.max(0,due-paid);
-    if(need>0)fee.push({p:p,amt:need});else if(open>0)bal.push({p:p,amt:open})});
-  function row(r,kind){var p=r.p,first=String(p.Name).split(' ')[0],nm=rtParts(sem(p.Seminar).name).nm;
-    var msg=kind==='fee'?'Hello '+first+', thank you for signing up for the Soul Care retreat “'+nm+'”! Your place is secured once the registration fee of '+money(r.amt)+' is paid. Please send it by M-Pesa (Send money) to '+pay+'. Your personal page: '+p.link+' – Blessings, '+S.me
-      :'Hello '+first+', we are looking forward to seeing you at the Soul Care retreat “'+nm+'”. '+money(r.amt)+' is still open – you can pay it in parts by M-Pesa (Send money) to '+pay+'. Your personal page: '+p.link+' – Blessings, '+S.me;
+  var fee=[],bal=[];S.people.forEach(function(p){var r=remindInfo(p);if(r)(r.kind==='fee'?fee:bal).push(r)});
+  function row(r,kind){var p=r.p,nm=rtParts(sem(p.Seminar).name).nm,msg=remindMsg(r);
     return '<div class="it"><div class="l"><div class="t">'+esc(p.Name)+'</div><div class="sub">'+esc(nm)+' · '+money(r.amt)+'</div></div><div class="r">'+(p.Phone?'<a class="btn small" style="text-decoration:none;width:auto;display:inline-block;margin:0" target="_blank" href="https://wa.me/'+phone254(p.Phone)+'?text='+encodeURIComponent(msg)+'">💬 Remind</a>':'<span class="sub">no phone</span>')+'</div></div>'}
   $('rm_out').innerHTML='<div class="hint">Tap 💬 – WhatsApp opens with a friendly message ready. Just press send.</div>'+
   '<div class="card"><h3>Registration fee not paid yet ('+fee.length+')</h3><div class="list">'+(fee.map(function(r){return row(r,'fee')}).join('')||'<div class="sub">Nobody – great!</div>')+'</div></div>'+
@@ -864,6 +877,7 @@ function personView(id){
   '<label>🙏 Prayer partner</label><select onchange="setPartner(\''+p.ID+'\',this)">'+partnerOptions(p.Seminar,p['Prayer partner'])+'</select><span class="hint"></span>'+
   (fin?'<div class="stat"><div><b>'+money(p.Due)+'</b><span>Due</span></div><div><b class="pos">'+money(p['Paid (confirmed)'])+'</b><span>Paid</span></div><div><b class="'+(p.Balance>0?'neg':'')+'">'+money(p.Balance)+'</b><span>Open</span></div></div>'+
     bursaryBox(p)+(Number(p.Discount)&&p['Financial support']!=='Approved'?'<div class="msg info">Discount '+money(p.Discount)+(p['Discount reason']?' – '+esc(p['Discount reason']):'')+(p.Sponsor?' · paid by '+esc(p.Sponsor):'')+'</div>':'')+
+    (function(){var r=remindInfo(p);return r&&p.Phone?'<a class="btn" style="text-align:center;text-decoration:none;display:block" target="_blank" href="https://wa.me/'+phone254(p.Phone)+'?text='+encodeURIComponent(remindMsg(r))+'">💬 Send payment reminder<div style="font-size:13px;font-weight:400;opacity:.85">'+(r.kind==='fee'?'Registration fee':'Still open')+': '+money(r.amt)+' – opens WhatsApp</div></a>':''})()+
     '<button class="btn" onclick="go(txForm,{from:\'OUT-PART\',to:\'KE-PHONE\',participantId:\''+p.ID+'\',seminar:\''+p.Seminar+'\'})">+ Add payment</button>':'')+
   (p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(wa)+'">Send personal page link on WhatsApp</a>':'')+
   (S.viewAs&&p.link?'<a class="btn light" style="text-align:center;text-decoration:none" target="_blank" href="'+esc(p.link+'&test=1')+'">👁 View their page (test)</a>':'')+
@@ -872,7 +886,7 @@ function personView(id){
   '<button class="btn light" onclick="go(personEdit,{id:\''+p.ID+'\'})">Edit details'+(fin?' / price / discount':'')+'</button>'+(S.admin?'<div id="pd_box"><button class="btn red" onclick="personDel(\''+p.ID+'\',this)">Delete participant</button></div>':''));
 }
 function bursaryBox(p){var st=p['Financial support']||'',max=(Number(p.Price)||0)-((sem(p.Seminar).deposit)||0);
-  var head=st==='Requested'?'<div class="msg info">💛 <b>Asked for financial support</b>'+(p['Financial support note']?': “'+esc(p['Financial support note'])+'”':'')+'</div>':st==='Approved'?'<div class="msg ok">💛 Financial support approved: <b>'+money(p.Discount)+'</b></div>':st==='Not approved'?'<div class="msg info">💛 Financial support not approved</div>':'';
+  var head=st==='Requested'?'<div class="msg info">💛 <b>Asked for financial support</b>'+(p['Financial support note']?': “'+esc(p['Financial support note'])+'”':'')+'</div>':st==='Approved'?'<div class="msg ok">💛 Financial support approved: <b>'+money(p.Discount)+'</b><div class="sub">🔒 This amount is set aside in the budget.</div></div>':st==='Not approved'?'<div class="msg info">💛 Financial support not approved</div>':'';
   return '<div class="card"><h3>💛 Financial support</h3>'+head+
   '<label>Amount (KES, at most '+money(max)+')</label><input id="bu_a" type="number" inputmode="numeric" value="'+(st==='Approved'?esc(p.Discount):5000)+'">'+
   '<div id="bu_m"></div><button class="btn" onclick="bursaryDo(\''+p.ID+'\',\'Approved\',this)">'+(st==='Approved'?'Change amount':'Approve financial support')+'</button>'+
