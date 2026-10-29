@@ -187,7 +187,7 @@ function signupView(){
   if(!S.seminars.length){render(h+'<div class="card">Registration is not open at the moment. Please check back later.</div>');return}
   if(!S.selA)S.selA=[S.seminars[0].id];
   function ta(id,l){return '<label>'+l+'</label><textarea id="'+id+'"></textarea>'}
-  h+='<div class="lead">In 2027 we are offering two retreats. Choose one – or both, if you would like to join both retreats (tap <b>Read more</b> to learn about each). Then fill in the registration below. It takes about 10 minutes.</div>';
+  h+='<div class="lead">In 2027, we are offering 2 retreats. Choose one, the other, or both, and fill in the registration below. It will take less than 10 minutes.</div>';
   h+=S.seminars.map(function(s){var p=rtParts(s.name),on=S.selA.indexOf(s.id)>=0;
     return '<div class="card rt'+(on?' on':'')+'" id="rt_'+esc(s.id)+'" onclick="pickRetreat(\''+esc(s.id)+'\')">'+
     '<span class="pick">'+(on?'✓ Chosen':'Choose')+'</span>'+(p.lbl?'<div class="lbl">'+esc(p.lbl)+'</div>':'')+'<div class="nm">'+esc(p.nm)+'</div>'+
@@ -245,10 +245,10 @@ function doSignup(btn){
    ========================================================= */
 function partItems(){var v=S.pv;return (v.items&&v.items.length)?v.items:[{person:v.person,seminar:v.seminar}]}
 function myLink(){return location.origin+location.pathname+'?p='+AUTH.p}
-function linkCard(){var l=myLink();
+function linkCard(){var l=myLink(),ph=(S.pv&&S.pv.person&&S.pv.person.Phone)||'',wa=(ph?'https://wa.me/'+phone254(ph):'https://wa.me/')+'?text='+encodeURIComponent('My Soul Care retreat page: '+l);
   return '<div class="card"><h3>🔗 Your personal page</h3><div class="sub">Save this link so you can come back any time to see your registration and payments.</div>'+
   '<div style="word-break:break-all;margin:8px 0;padding:10px;background:var(--brand2);border-radius:10px;font-size:14px">'+esc(l)+'</div>'+
-  '<div class="grid" style="margin:6px 0 0"><button class="big" onclick="copyLink(this)"><span class="i">📋</span>Copy link</button><a class="big" style="text-decoration:none;color:inherit;display:block" target="_blank" href="https://wa.me/?text='+encodeURIComponent('My Soul Care retreat page: '+l)+'"><span class="i">💬</span>Send to myself on WhatsApp</a></div>'+
+  '<div class="grid" style="margin:6px 0 0"><button class="big" onclick="copyLink(this)"><span class="i">📋</span>Copy link</button><a class="big" style="text-decoration:none;color:inherit;display:block" target="_blank" rel="noopener" href="'+esc(wa)+'"><span class="i">💬</span>Send to myself on WhatsApp</a></div>'+
   '<div class="hint">Tip: in your browser menu choose “Add to Home screen” – then it opens like an app.</div></div>'}
 function copyLink(b){var l=myLink();function ok(){b.innerHTML='<span class="i">✓</span>Copied'}
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(l).then(ok,function(){prompt('Copy this link:',l)});else prompt('Copy this link:',l)}
